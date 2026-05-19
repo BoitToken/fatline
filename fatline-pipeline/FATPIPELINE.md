@@ -65,42 +65,42 @@ These existing learnings stay:
 - 1 conditional repair skill only when verification fails
 - builder and judge must not be the same worker
 
-### 1. Discovery Director
+### 1. FatScout
 Own the first interaction after a one-line idea.
 
 **Job:** Ask 4-6 adaptive questions, classify the product, identify audience, core loop, commercial model, platform, and success criteria.
 
 **Output:** Discovery answers + product classification + risk flags.
 
-### 2. Concept Architect
+### 2. FatScout
 Turn discovery into the build plan.
 
 **Job:** Write the concept packet, information architecture, page map, feature priority, mock-data plan, style tokens, and anti-pattern fence.
 
 **Output:** Job-memory artifact v1.
 
-### 3. Prototype Builder
+### 3. FatProto
 Generate the actual 5-6 page prototype in one coherent pass.
 
 **Job:** Own UX + visual direction + frontend implementation together for the prototype layer. Produce realistic screen-to-screen continuity, seeded mock data, and a working interaction shell.
 
 **Output:** Functional prototype artifact.
 
-### 4. Verification Orchestrator
+### 4. FatJudge
 Run the first-class proof loop.
 
 **Job:** Observe the build across static, runtime, visual, and behavioral channels. Score it, localize failures, and route them correctly.
 
 **Output:** Verification packet with pass/fail, evidence, and localized defects.
 
-### 5. Production Forge
+### 5. FatForge
 After prototype approval, deepen the system into a deployable product.
 
 **Job:** Convert approved prototype direction into full app architecture, backend shape, integrations, auth, onboarding, persistence, and deployment packaging, then re-enter the same verification loop before release.
 
 **Output:** Deployable app/website + production verification packet.
 
-### 6. Repair Engineer *(conditional)*
+### 6. FatDeploy *(conditional)*
 Apply bounded, surgical fixes only when verification fails.
 
 **Job:** Patch exactly what the verifier localized. Do not redesign blindly. Do not widen scope.
@@ -118,27 +118,27 @@ Apply bounded, surgical fixes only when verification fails.
 
 ### Proto flow
 
-1. **Discovery Director**
+1. **FatScout**
    - ask 4-6 adaptive questions
    - capture user goals and anti-goals
    - detect app type
 
-2. **Concept Architect**
+2. **FatScout**
    - define page map
    - define primary user loop
    - define mock-data sources and entities
    - define style tokens and negative fence
 
-3. **Prototype Builder**
+3. **FatProto**
    - build all proto screens in one pass
    - keep flow continuity across pages
    - use mock data that matches the business model
 
-4. **Verification Orchestrator**
+4. **FatJudge**
    - run static/runtime/visual/behavioral checks
    - return score + localized defects
 
-5. **Repair Engineer** *(only if verification fails)*
+5. **FatDeploy** *(only if verification fails)*
    - patch defects
    - hand back for re-verification
 
@@ -163,7 +163,7 @@ Apply bounded, surgical fixes only when verification fails.
 
 ### Production flow
 
-1. **Production Forge** consumes the approved proto plus job-memory artifact
+1. **FatForge** consumes the approved proto plus job-memory artifact
 2. expand architecture:
    - data model
    - auth
@@ -173,8 +173,8 @@ Apply bounded, surgical fixes only when verification fails.
    - integrations
    - deployment plan
 3. build implementation
-4. send into **Verification Orchestrator**
-5. route defects to **Repair Engineer** only when needed
+4. send into **FatJudge**
+5. route defects to **FatDeploy** only when needed
 6. repeat under bounded budget
 7. if quality gates pass, package for deploy
 
@@ -317,13 +317,13 @@ Every stage pass must attach an evidence bundle, not just a status flag.
 
 ### Routing rules
 
-- spec defect -> **Concept Architect**
-- shell, route, or shared-layout defect -> **Prototype Builder** or **Production Forge**
-- page-specific defect -> **Prototype Builder**
-- visual/layout bug -> **Repair Engineer**
-- runtime error -> **Repair Engineer**
-- missing feature but clear spec -> **Production Forge** or **Prototype Builder**
-- brief ambiguity -> **Concept Architect**
+- spec defect -> **FatScout**
+- shell, route, or shared-layout defect -> **FatProto** or **FatForge**
+- page-specific defect -> **FatProto**
+- visual/layout bug -> **FatDeploy**
+- runtime error -> **FatDeploy**
+- missing feature but clear spec -> **FatForge** or **FatProto**
+- brief ambiguity -> **FatScout**
 - taste ambiguity or non-converging aesthetic feedback -> **human escalation**
 
 ### Repair budget

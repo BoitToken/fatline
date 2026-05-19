@@ -35,15 +35,15 @@ Every agent carries **massive mandate** — they do more, remember more, and ver
 
 | Agent | Mandate | Validation Gate |
 |---|---|---|
-| **FatBot-1: Research Architect** | Build type → Deep research → Architecture → Exhaustive features → Negative fence | Verification Judge approves architecture packet |
-| **FatBot-2: Proto Builder** | Build prototype + self-verify against architecture packet | Verification Judge 4-channel check |
-| **FatBot-3: Verification Judge** | Independent verification after EVERY stage. Never builds. Only judges. | Human escalation if ambiguous |
-| **FatBot-4: Production Forge** | Turn approved prototype into deployable product + self-verify | Verification Judge 4-channel check |
-| **FatBot-5: Repair Surgeon** (conditional) | Surgical fixes only. Never redesign. Max 2 cycles proto, 3 production. | Re-submit to Verification Judge |
+| **FatScout** | Build type → Deep research → Architecture → Exhaustive features → Negative fence | FatJudge approves architecture packet |
+| **FatProto** | Build prototype + self-verify against architecture packet | FatJudge 4-channel check |
+| **FatJudge** | Independent verification after EVERY stage. Never builds. Only judges. | Human escalation if ambiguous |
+| **FatForge** | Turn approved prototype into deployable product + self-verify | FatJudge 4-channel check |
+| **FatDeploy** (conditional) | Surgical fixes only. Never redesign. Max 2 cycles proto, 3 production. | Re-submit to FatJudge |
 
 ---
 
-## Phase A — Deep Discovery & Architecture (FatBot-1)
+## Phase A — Deep Discovery & Architecture (FatScout)
 
 ### Step 1: Build Type Identification
 
@@ -408,16 +408,16 @@ Self-verification (agent checks own output)
     ↓
 Intent-to-output diff check (did we deliver what was mandated?)
     ↓
-Submit to Verification Judge
+Submit to FatJudge
     ↓
-Verification Judge runs 4-channel check
+FatJudge runs 4-channel check
     ↓
 PASS → Handoff to next agent
-FAIL → Route to Repair Surgeon or back to originating agent
+FAIL → Route to FatDeploy or back to originating agent
     ↓
 Repair completes
     ↓
-Re-submit to Verification Judge
+Re-submit to FatJudge
     ↓
 PASS → Handoff
 FAIL (budget exhausted) → Escalate to human
@@ -425,7 +425,7 @@ FAIL (budget exhausted) → Escalate to human
 
 ### Self-Verification Checklist (every agent must complete before submission)
 
-**Research Architect:**
+**FatScout:**
 - [ ] Build type correctly identified
 - [ ] All 4-6 discovery questions answered
 - [ ] Market research has 3+ competitors
@@ -434,7 +434,7 @@ FAIL (budget exhausted) → Escalate to human
 - [ ] Negative fence has 20+ items
 - [ ] All outputs in job-memory.json
 
-**Proto Builder:**
+**FatProto:**
 - [ ] All pages from architecture packet built
 - [ ] Mock data matches schema
 - [ ] Navigation works between all pages
@@ -443,7 +443,7 @@ FAIL (budget exhausted) → Escalate to human
 - [ ] Visual check against negative fence
 - [ ] Screenshots at 390/768/1440
 
-**Production Forge:**
+**FatForge:**
 - [ ] All prototype pages preserved
 - [ ] Backend routes match API contract
 - [ ] Auth flow works end-to-end
@@ -452,7 +452,7 @@ FAIL (budget exhausted) → Escalate to human
 - [ ] Integrations pass in test mode
 - [ ] Deploy smoke test passes
 
-### Verification Judge — 4-Channel Check
+### FatJudge — 4-Channel Check
 
 **Channel 1: Static**
 - Typecheck pass
@@ -519,7 +519,7 @@ FAIL (budget exhausted) → Escalate to human
 
 ## Quality Gates
 
-### Architecture Gate (after Research Architect)
+### Architecture Gate (after FatScout)
 - [ ] Build type identified
 - [ ] Discovery answers complete
 - [ ] Competitor research has 3+ entries
@@ -531,7 +531,7 @@ FAIL (budget exhausted) → Escalate to human
 - [ ] Verification score ≥ 80
 - [ ] Evidence bundle attached
 
-### Proto Gate (after Proto Builder + Verification Judge)
+### Proto Gate (after FatProto + FatJudge)
 - [ ] All required pages render
 - [ ] No critical console/runtime failures
 - [ ] Key navigation path works
@@ -541,7 +541,7 @@ FAIL (budget exhausted) → Escalate to human
 - [ ] Verification score ≥ 85
 - [ ] Evidence bundle attached
 
-### Production Gate (after Production Forge + Verification Judge)
+### Production Gate (after FatForge + FatJudge)
 - [ ] Build + runtime checks clean
 - [ ] Core onboarding flow works
 - [ ] Core commercial/operational workflow works
@@ -632,7 +632,7 @@ Single source of truth carried across all stages:
 | Optimize generation speed | Optimize verification rigor |
 | More agents = better | Fatter agents = fewer handoffs = more coherent |
 | Positive brief only | Exhaustive negative fence |
-| Self-reported quality | Independent Verification Judge |
+| Self-reported quality | Independent FatJudge |
 | Handoff without checking | Intent-to-output diff before every handoff |
 | Agents operate blind | Every agent verifies before submission |
 | Screenshot = done | 4-channel verification with evidence |
@@ -645,7 +645,7 @@ Single source of truth carried across all stages:
 1. ✅ Write v3 spec (this document)
 2. Update all SKILL.md files with v3 mandates
 3. Implement intent-to-output diff check in verification
-4. Add negative fence generation to Research Architect
+4. Add negative fence generation to FatScout
 5. Wire validation loop into pipeline orchestrator
 6. Add evidence bundle attachment to all stages
 7. Run E2E tests until green

@@ -20,12 +20,12 @@ Most AI builders optimize generation. Fatline optimizes what **survives verifica
 
 | v1 (6 agents) | v2 (4 core + 1 conditional) |
 |---|---|
-| Discovery Director | → **Research Architect** (merged + expanded) |
-| Concept Architect | → absorbed into Research Architect |
-| Prototype Builder | → **Proto Builder** (with self-verify) |
-| Verification Orchestrator | → **Verification Judge** (independent, runs after EVERY stage) |
-| Production Forge | → **Production Forge** (with self-verify) |
-| Repair Engineer | → **Repair Surgeon** (conditional, fixes only) |
+| Discovery Director | → **FatScout** (merged + expanded) |
+| Concept Architect | → absorbed into FatScout |
+| Prototype Builder | → **FatProto** (with self-verify) |
+| Verification Orchestrator | → **FatJudge** (independent, runs after EVERY stage) |
+| FatForge | → **FatForge** (with self-verify) |
+| Repair Engineer | → **FatDeploy** (conditional, fixes only) |
 
 **Why fewer agents?** Context loss during handoffs is our #1 quality killer. Every handoff loses nuance. Fatter agents = fewer handoffs = more coherent output.
 
@@ -33,7 +33,7 @@ Most AI builders optimize generation. Fatline optimizes what **survives verifica
 
 ## Agent Roster
 
-### FatBot-1: Research Architect
+### FatBot-1: FatScout
 **Mandate:** Own everything before a single line of code is written.
 
 **Tasks:**
@@ -46,7 +46,7 @@ Most AI builders optimize generation. Fatline optimizes what **survives verifica
 7. **Mock data schema** — realistic entities, states, relationships
 8. **Acceptance criteria** — concrete, testable success definitions
 
-**Validation gate:** Verification Judge must approve the architecture packet before any code is written. If the architecture is rejected, Research Architect must fix it.
+**Validation gate:** FatJudge must approve the architecture packet before any code is written. If the architecture is rejected, FatScout must fix it.
 
 **Output:**
 - `architecture-packet.json` — complete build plan
@@ -56,7 +56,7 @@ Most AI builders optimize generation. Fatline optimizes what **survives verifica
 
 ---
 
-### FatBot-2: Proto Builder
+### FatBot-2: FatProto
 **Mandate:** Build the prototype AND verify it yourself before handing off.
 
 **Tasks:**
@@ -65,9 +65,9 @@ Most AI builders optimize generation. Fatline optimizes what **survives verifica
 3. Wire realistic mock data
 4. **Self-verify** against architecture packet
 5. Fix your own defects
-6. Submit to Verification Judge
+6. Submit to FatJudge
 
-**Validation gate:** Must pass self-verification AND Verification Judge before proceeding.
+**Validation gate:** Must pass self-verification AND FatJudge before proceeding.
 
 **Output:**
 - `prototype-artifact.json` — built prototype
@@ -75,13 +75,13 @@ Most AI builders optimize generation. Fatline optimizes what **survives verifica
 
 ---
 
-### FatBot-3: Verification Judge
+### FatBot-3: FatJudge
 **Mandate:** Independent verification. Never builds. Only judges.
 
 **Runs after EVERY stage:**
-- After Research Architect → verifies architecture completeness
-- After Proto Builder → verifies prototype quality
-- After Production Forge → verifies production readiness
+- After FatScout → verifies architecture completeness
+- After FatProto → verifies prototype quality
+- After FatForge → verifies production readiness
 
 **4-channel verification:**
 1. **Static** — typecheck, lint, build, import integrity, asset integrity
@@ -106,7 +106,7 @@ Every failure gets a structured defect packet:
 
 ---
 
-### FatBot-4: Production Forge
+### FatBot-4: FatForge
 **Mandate:** Turn approved prototype into deployable product.
 
 **Tasks:**
@@ -118,7 +118,7 @@ Every failure gets a structured defect packet:
 6. **Self-verify** before submission
 7. Deploy
 
-**Validation gate:** Must pass self-verification AND Verification Judge before declaring live.
+**Validation gate:** Must pass self-verification AND FatJudge before declaring live.
 
 **Output:**
 - `production-artifact.json` — complete app
@@ -126,11 +126,11 @@ Every failure gets a structured defect packet:
 
 ---
 
-### FatBot-5: Repair Surgeon (conditional)
+### FatBot-5: FatDeploy (conditional)
 **Mandate:** Fix localized defects only. Never redesign.
 
 **Activated only when:**
-- Verification Judge finds defects
+- FatJudge finds defects
 - Defect is localized (specific file/component)
 - Repair budget not exhausted
 
@@ -138,7 +138,7 @@ Every failure gets a structured defect packet:
 1. Read defect packet
 2. Apply surgical fix
 3. Re-verify
-4. Hand back to Verification Judge
+4. Hand back to FatJudge
 
 **Repair budget:**
 - Max 2 repair cycles in proto mode
@@ -192,12 +192,12 @@ Every project MUST have a negative fence with at least these categories:
 
 ### After EVERY agent:
 1. Agent submits output
-2. **Verification Judge runs 4-channel check**
+2. **FatJudge runs 4-channel check**
 3. If pass → handoff to next agent
-4. If fail → route to Repair Surgeon (if localized) or back to originating agent (if architectural)
+4. If fail → route to FatDeploy (if localized) or back to originating agent (if architectural)
 5. If fail after budget → escalate to human
 
-### Verification Judge is ALWAYS independent
+### FatJudge is ALWAYS independent
 - Never the same agent that produced the artifact
 - Never uses the same context window
 - Fresh read of artifacts only
