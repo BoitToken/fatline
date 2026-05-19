@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = 'https://api.produsa.dev'
+const DEFAULT_API_BASE = 'https://api.produsa.app'
 
 export function getStoredAuth() {
   return {
