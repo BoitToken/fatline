@@ -218,6 +218,19 @@ Escalate to CEO when:
 
 ### Rule #75: Bundler Placeholder NEVER Ships With Real Source
 
+### Rule #76: Surface Delivery Verification Is Mandatory on WhatsApp (2026-05-20)
+
+For WhatsApp-driven runs, verification must include delivery-channel proof, not just artifact proof.
+
+- If the contract says the user should receive a proto link or Studio link, verify that the message/send path actually fired.
+- A successful backend/project state with no user-facing link/message is a failure.
+- Verification output must distinguish:
+  - build failed
+  - build succeeded but link generation failed
+  - build succeeded but WA delivery failed
+  - build and delivery both succeeded
+- Route delivery-path failures to the repair layer; do not pass them as successful builds.
+
 The manifest bundler (`manifestBundler.js`) must NEVER emit the "Component rendered in manifest build" placeholder HTML when real source exists. Specifically:
 
 - If `prototype_pages` exist in DB → use `injectPages(prototype_index_html, prototype_pages)` as the bundle output

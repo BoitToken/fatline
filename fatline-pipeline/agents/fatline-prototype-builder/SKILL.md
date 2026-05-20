@@ -214,3 +214,14 @@ Currency is determined by the **geographic origin of the user/brief**, detected 
 - All agent system prompts mentioning currency: "Use the symbol from `research_data.currency.symbol`. If absent, default to ₹."
 - Mock data in prototypes MUST use the correct currency symbol (e.g., "₹2,400 revenue" not "$2,400")
 - Production builds MUST preserve currency locale for payment integrations (Razorpay for INR, Stripe for USD/EUR)
+
+### Rule #74b: Link Delivery Is Part of Done on WA (2026-05-20)
+
+For the WhatsApp Fatline surface, a successful prototype build is not complete unless the user receives the usable continuation links.
+
+- On successful prototype completion, return both:
+  - proto/preview link
+  - studio link
+- The final message must make the next action obvious (edit, continue in Studio, or explicit build/deploy approval depending on stage).
+- If the build succeeded but link generation or delivery failed, treat the job as **incomplete** and surface the failure for repair.
+- Do not mark the run complete just because the worker built the artifact; user delivery is part of the contract.

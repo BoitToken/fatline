@@ -213,3 +213,10 @@ Currency is determined by the **geographic origin of the user/brief**, detected 
 - All agent system prompts mentioning currency: "Use the symbol from `research_data.currency.symbol`. If absent, default to ₹."
 - Mock data in prototypes MUST use the correct currency symbol (e.g., "₹2,400 revenue" not "$2,400")
 - Production builds MUST preserve currency locale for payment integrations (Razorpay for INR, Stripe for USD/EUR)
+
+### Rule #74b: Explicit Promotion Only (2026-05-20)
+
+- Discovery completion does not authorize production.
+- Prototype completion does not authorize production.
+- Production Forge only runs after an explicit promote/build-live approval on the correct surface.
+- If downstream code paths still auto-promote from naming, discovery, or research completion, treat that as a pipeline bug and stop rather than silently continuing.

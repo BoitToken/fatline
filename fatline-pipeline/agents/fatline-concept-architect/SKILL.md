@@ -130,6 +130,23 @@ Instant prototype fires automatically on Discovery completion (~90s). Production
 - Concept Architect MUST NOT trigger production builds — only prepares the contract
 - Production Forge ONLY activates after explicit user approval + `production_requested: true`
 
+### Rule #73b: Discovery Completion Output Must Be Deterministic (2026-05-20)
+
+When discovery finishes, the handoff packet must always include:
+
+- confirmed or proposed project name
+- concise synopsis of what is being built
+- app/build type classification
+- discovery answers that materially changed architecture
+- explicit note that the next step is **waiting for build approval** unless the surface is configured for auto-build
+
+For WhatsApp Fatline, the ready state must end in a user-facing prompt equivalent to:
+
+- summary / proposed name
+- “reply `build it` to start”
+
+Do not leave the next action ambiguous.
+
 ---
 
 ## Base Quality Rules

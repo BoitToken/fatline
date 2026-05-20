@@ -197,3 +197,14 @@ The manifest bundler (`manifestBundler.js`) must NEVER emit the "Component rende
 - Never attempt to "fix" a placeholder by editing the placeholder text — replace with real source only
 
 **Why this rule exists (2026-05-07 incident):** Project 256 "House of Presence" had 215KB of real editorial HTML in `prototype_index_html` + 6 pages in `prototype_pages`, but `bundleManifestHTML` only read from `build_tasks` (which had 0 rows for instant-prototype projects). The bundler silently emitted a 6.2KB placeholder stub. Because `retry-deploy` did not re-bundle, every retry served the stub. CEO discovered this during investor demo preparation.
+
+### Rule #76: Delivery Failures Are Repair Targets (2026-05-20)
+
+If the prototype exists but the WhatsApp user did not receive the proto/Studio links:
+
+- treat it as a real defect, not a cosmetic issue
+- localize whether failure was in project creation, build trigger, poller/status path, link generation, or WA delivery
+- patch the narrowest broken layer first
+- re-run enough of the flow to prove the user-facing links now arrive
+
+“Build succeeded somewhere in the backend” is not an acceptable closeout if the user got nothing.

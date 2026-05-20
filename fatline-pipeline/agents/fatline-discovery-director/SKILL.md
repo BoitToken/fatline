@@ -209,6 +209,25 @@ Every Fatline build kicks off with the Discovery Director asking 4-6 type-specif
 - FatBot: calls `POST /api/discovery/questions` (standalone endpoint, no project ID) to generate questions before project creation
 - Frontend: `DiscoveryWizard` component shown when stage='briefing' or `build:discovery_required` socket event fires
 
+### Rule #72b: WA Discovery Handoff Must Not Auto-Build (2026-05-20)
+
+For the WhatsApp Fatline surface specifically:
+
+- Project naming is **not** a build trigger.
+- After the user confirms the project name, the flow must continue into discovery questions or final discovery confirmation.
+- Discovery must terminate cleanly after **at most 6 total questions**.
+- When discovery is sufficient, the bot must transition to an explicit **ready-to-build** state.
+- The bot must wait for a clear user trigger like `build it` before starting the build.
+- Never send “starting deep research / prototype in 10–15 minutes” immediately after project naming unless the explicit build trigger has already happened.
+- If discovery cannot continue because project creation or auth failed, surface the error and keep the user in a recoverable state instead of pretending the build started.
+
+### Rule #72c: Fatline Naming + Surface Rules (2026-05-20)
+
+- `Fatline` is an internal pipeline name.
+- User-facing product name is **Produsa**.
+- Agent names like **FatScout**, **FatProto**, **FatJudge**, **FatForge**, and **FatDeploy** are allowed user-facing labels.
+- Do not expose internal repo/runtime language that would confuse the user about whether they are using Produsa.
+
 ### Rule #73: Build Trigger Explicit
 
 Instant prototype fires automatically on Discovery completion (~90s). Production manifest build (full pipeline + deploy) fires ONLY when user clicks **Approve & Build Production** / **Deploy Live** (`POST /api/projects/:id/build/production`). Research phase outputs are info-layer chat messages, not build triggers.
