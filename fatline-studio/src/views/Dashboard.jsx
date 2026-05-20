@@ -25,7 +25,12 @@ export default function Dashboard({ onSelectProject, onCreateProject }) {
       const data = await listProjects()
       setProjects(data.projects || [])
     } catch (err) {
-      setError(err.message)
+      const msg = err.message || ''
+      if (msg.includes('401') || msg.includes('token') || msg.includes('Access token')) {
+        setError('Not authenticated — open Settings and paste your Produsa token')
+      } else {
+        setError(msg)
+      }
     } finally {
       setLoading(false)
     }
