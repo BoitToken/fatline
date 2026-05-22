@@ -182,6 +182,12 @@ export async function runAudit({ url, file, label = 'audit', outDir, mobile = fa
       const rec = { id: pid };
       try {
         if (pid !== '__single__') { await navTo(page, pid); await page.waitForTimeout(1100); }
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        // let images settle so the loaded-count is accurate (cap 4s)
+        await page.evaluate(() => Promise.race([
+          Promise.all([...document.querySelectorAll('img')].map((i) => i.complete ? 0 : new Promise((r) => { i.onload = i.onerror = r; }))),
+          new Promise((r) => setTimeout(r, 4000)),
+        ])).catch(() => {});
         await page.evaluate(() => window.scrollTo(0, 0));
         rec.metrics = await probe(page);
         const shot = path.join(outDir, `page-${String(i).padStart(2, '0')}-${pid}.png`);
