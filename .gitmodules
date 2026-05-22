@@ -1,0 +1,4 @@
+[submodule "fatline-wa-bot"]
+	path = fatline-wa-bot
+	url = https://github.com/BoitToken/produsa-wa.git
+	branch = main

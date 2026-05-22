@@ -1,9 +1,28 @@
 # Fatline FatPipeline v3 — Mandate-Heavy Agents, Validation Every Gate, Exhaustive Negative Fence
 
-**Status:** Active mandate  
+> ✅ **CANONICAL spec.** Supersedes v1/v2. Rules are canonical in [FATBOT-RULES.md](./FATBOT-RULES.md); agent skills in [agents/](./agents/); the runnable pipeline in [runtime/](./runtime/).
+
+**Status:** Active mandate (canonical)  
 **Author:** ProdusaClaw  
 **Date:** 2026-05-20  
 **Version:** 3.0 — CEO Directive Edition
+
+---
+
+## Roster ↔ SKILL map (codename → agent → stage)
+
+The spec uses codenames; the runnable agents use descriptive names. This is the authoritative mapping:
+
+| Codename | Agent (`agents/…/SKILL.md`) | Stage | Notes |
+|----------|-----------------------------|-------|-------|
+| **FatScout** | `fatline-discovery-director` | discovery | adaptive Qs + market snapshot |
+| **FatArchitect** | `fatline-concept-architect` | concept | contract + style-fence + acceptance |
+| **FatProto** | `fatline-prototype-builder` | prototype | UX+visual+frontend in one pass |
+| **FatJudge** | `fatline-verification-orchestrator` | verifying | 4-channel proof + scoring |
+| **FatMender** | `fatline-repair-engineer` | repairing | conditional, bounded fixes |
+| **FatForge** | `fatline-production-forge` | production | deepen + deploy (absorbs FatDeploy) |
+
+> Note: earlier drafts labelled the repair agent "FatDeploy" — that was a naming bug. Deploy is part of **FatForge**; the conditional repair agent is **FatMender**.
 
 ---
 

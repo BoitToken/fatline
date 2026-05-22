@@ -1,0 +1,13 @@
+{
+  "name": "fatline-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone orchestrator that runs the 6-stage FatBot pipeline over the job-memory artifact, enforcing FATBOT-RULES.md gates. Zero runtime dependencies.",
+  "bin": { "fatline": "./run.mjs" },
+  "scripts": {
+    "start": "node run.mjs",
+    "dry-run": "node run.mjs --idea \"an ecommerce store for handmade goods\" --promote",
+    "validate": "node ../../scripts/validate-fatbots.mjs"
+  }
+}

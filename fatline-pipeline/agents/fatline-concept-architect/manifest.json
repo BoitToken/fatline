@@ -1,0 +1,12 @@
+{
+  "name": "fatline-concept-architect",
+  "codename": "FatArchitect",
+  "phase": "concept",
+  "depends_on": ["job-memory.json", "discovery_answers", "user_references"],
+  "outputs": ["prototype-contract.json", "style-fence.json", "acceptance-tests.json", "brand_identity", "CONCEPT-HANDOFF.md"],
+  "feeds_into": "fatline-prototype-builder",
+  "max_runtime": "1h",
+  "quality_gate": "contract + style-fence + acceptance present; >=1 negative fence; 5-6 pages",
+  "model": "anthropic/claude-opus-4-7",
+  "binding_rules": ["#72", "#73", "#74b", "#73b", "#74", "D1", "D2", "#44", "#45"]
+}

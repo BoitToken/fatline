@@ -1,0 +1,13 @@
+{
+  "name": "fatline-production-forge",
+  "codename": "FatForge",
+  "phase": "production",
+  "depends_on": ["approved job-memory.json", "prototype-contract.json", "style-fence.json", "verification_history"],
+  "outputs": ["production_plan", "deployment", "PRODUCTION-HANDOFF.md", "DEPLOY-HANDOFF.md"],
+  "feeds_into": "fatline-verification-orchestrator (re-verify) -> live",
+  "max_runtime": "2h/slice",
+  "quality_gate": "R1 build passes; 3-cycle QA >=95; 6-step verification; delivery (#76)",
+  "model": "anthropic/claude-opus-4-7",
+  "trigger": "explicit promotion only (#73/#74b) + production_requested=true; paid (R5)",
+  "binding_rules": ["R1", "R3", "R4", "R5", "R9", "#73", "#74b", "#74", "#75", "#76", "#34", "#43", "D4", "D5", "D6", "#44", "#45"]
+}

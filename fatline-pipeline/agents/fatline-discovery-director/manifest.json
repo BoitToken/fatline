@@ -1,0 +1,12 @@
+{
+  "name": "fatline-discovery-director",
+  "codename": "FatScout",
+  "phase": "discovery",
+  "depends_on": ["idea", "user_context", "prior_discovery_answers?"],
+  "outputs": ["job-memory.json", "discovery_answers", "market_snapshot", "currency", "DISCOVERY-HANDOFF.md"],
+  "feeds_into": "fatline-concept-architect",
+  "max_runtime": "1h (WA discovery <=6 questions)",
+  "quality_gate": "discovery sufficient + >=1 negative constraint (#72)",
+  "model": "anthropic/claude-opus-4-7",
+  "binding_rules": ["#72", "#72b", "#72c", "#73b", "#74", "#44", "#45"]
+}

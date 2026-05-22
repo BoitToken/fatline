@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://produsa.dev/fatline/job-memory.schema.json",
+  "title": "Fatline Job-Memory Artifact",
+  "description": "The single portable artifact carried across every FatBot stage (Rule R7). One job = one job-memory.json.",
+  "type": "object",
+  "required": ["job_id", "created_at", "surface", "idea", "stage"],
+  "properties": {
+    "job_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "surface": { "type": "string", "enum": ["studio", "whatsapp", "cli"] },
+    "idea": { "type": "string", "minLength": 1 },
+    "stage": {
+      "type": "string",
+      "enum": ["new", "discovery", "concept", "prototype", "verifying", "repairing", "ready_to_build", "production", "live", "blocked"]
+    },
+    "currency": {
+      "type": "object",
+      "required": ["symbol", "code"],
+      "properties": {
+        "symbol": { "type": "string" },
+        "code": { "type": "string", "enum": ["INR", "EUR", "USD"] }
+      }
+    },
+    "discovery": {
+      "type": "object",
+      "required": ["app_type", "sufficient", "questions_asked", "negative_constraints"],
+      "properties": {
+        "app_type": { "type": "string", "enum": ["marketplace", "crm", "saas", "ecommerce", "mobile", "landing", "webapp"] },
+        "target_users": { "type": "string" },
+        "primary_outcome": { "type": "string" },
+        "core_loop": { "type": "string" },
+        "platform": { "type": "string" },
+        "success_criteria": { "type": "array", "items": { "type": "string" } },
+        "negative_constraints": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "risk_flags": { "type": "array", "items": { "type": "string" } },
+        "discovery_answers": { "type": "object" },
+        "questions_asked": { "type": "number" },
+        "sufficient": { "type": "boolean" },
+        "market_snapshot": { "type": "object" }
+      }
+    },
+    "concept": {
+      "type": "object",
+      "required": ["project_name", "pages", "negative_fence"],
+      "properties": {
+        "project_name": { "type": "string" },
+        "synopsis": { "type": "string" },
+        "build_type": { "type": "string" },
+        "pages": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "feature_tiers": { "type": "object" },
+        "style_tokens": { "type": "object" },
+        "negative_fence": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "mock_data_schema": { "type": "object" },
+        "acceptance_criteria": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "prototype": {
+      "type": "object",
+      "properties": {
+        "pages": { "type": "array", "items": { "type": "string" } },
+        "index_html_len": { "type": "number" },
+        "manifest_html_len": { "type": "number" },
+        "has_footer": { "type": "boolean" },
+        "verification_targets": { "type": "array", "items": { "type": "string" } },
+        "delivered_links": { "type": "object" }
+      }
+    },
+    "verification": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["phase", "score", "decision"],
+        "properties": {
+          "phase": { "type": "string", "enum": ["prototype", "production"] },
+          "score": { "type": "number" },
+          "decision": { "type": "string", "enum": ["pass", "conditional", "fail"] },
+          "defects": { "type": "array" }
+        }
+      }
+    },
+    "repair_log": { "type": "array" },
+    "production": {
+      "type": "object",
+      "properties": {
+        "requested": { "type": "boolean" },
+        "approved_by": { "type": "string" },
+        "plan": { "type": "object" },
+        "deployment": { "type": "object" },
+        "delivered_links": { "type": "object" }
+      }
+    },
+    "decision_log": { "type": "array" },
+    "completion_log": { "type": "array" }
+  }
+}

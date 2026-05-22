@@ -1,0 +1,13 @@
+{
+  "name": "fatline-prototype-builder",
+  "codename": "FatProto",
+  "phase": "prototype",
+  "depends_on": ["job-memory.json", "prototype-contract.json", "style-fence.json", "mock_data_schema"],
+  "outputs": ["prototype_shell", "prototype_pages", "verification_targets", "delivered_links", "PROTOTYPE-SUBMISSION.md"],
+  "feeds_into": "fatline-verification-orchestrator",
+  "max_runtime": "2h",
+  "quality_gate": "FatJudge 4-channel >=95; renders 390/768/1440; 10 Commandments satisfied",
+  "model": "anthropic/claude-opus-4-7",
+  "binding_rules": ["R3", "R10", "#34", "#74", "#73", "#74b", "#76", "D1", "D2", "D3", "#44", "#45"],
+  "trigger": "automatic on discovery completion (free, #73)"
+}

@@ -1,0 +1,34 @@
+name: fatline-ci
+
+on:
+  push:
+    branches: [main, fatbot-skill-sync]
+  pull_request:
+
+jobs:
+  validate-fatbots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Validate FatBot definitions (frontmatter + rule-ref integrity + manifests)
+        run: node scripts/validate-fatbots.mjs
+      - name: Gate unit tests
+        working-directory: fatline-pipeline/runtime
+        run: node --test
+      - name: Orchestrator dry-run (offline)
+        working-directory: fatline-pipeline/runtime
+        run: node run.mjs --idea "ci smoke build" --promote
+
+  build-studio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Build fatline-studio
+        working-directory: fatline-studio
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build

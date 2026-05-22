@@ -1,0 +1,13 @@
+{
+  "name": "fatline-repair-engineer",
+  "codename": "FatMender",
+  "phase": "repairing",
+  "depends_on": ["job-memory.json", "verification-report.json", "defects.json", "approved_concept"],
+  "outputs": ["repair_log", "changed_targets", "patched_artifact"],
+  "feeds_into": "fatline-verification-orchestrator (re-verify)",
+  "max_runtime": "30m/fix (bounded repair budget)",
+  "quality_gate": "highest-severity defects resolved; diff minimal + explainable",
+  "model": "anthropic/claude-opus-4-7",
+  "conditional": true,
+  "binding_rules": ["#37", "#75", "#76", "R8", "#48", "#44", "#45"]
+}

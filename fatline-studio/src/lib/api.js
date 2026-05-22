@@ -46,7 +46,10 @@ export async function createProject({ name, description, type }) {
     method: 'POST',
     body: JSON.stringify({
       name,
-      stage: 'research',
+      // Prototype-first (Rule #73 / INSTANT_PIPELINE_SPEC): a new project enters at
+      // 'new' and flows new -> discovery -> instant_prototype. 'research' is a
+      // production-phase, info-layer activity and must not be the entry stage.
+      stage: 'new',
       description,
       type: type || 'webapp',
       metadata: { original_idea: description, app_type: type || 'webapp' },
