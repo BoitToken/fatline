@@ -141,8 +141,10 @@ export async function createProject({ name, description, type = 'webapp' }) {
   const data = await request('/api/projects', {
     method: 'POST',
     body: {
+      // V2's create validator only accepts research|viability|design|development|golive|marketing|live.
+      // The instant/discovery flow is driven by metadata + the chat/build endpoints, not this stage.
       name,
-      stage: 'discovery',
+      stage: 'research',
       description,
       type,
       metadata: { original_idea: description, app_type: type, source: 'fatline-studio' },
