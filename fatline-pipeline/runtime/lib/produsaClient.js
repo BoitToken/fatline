@@ -3,7 +3,7 @@
 // for the async build flow (build:instant_ready / production fires over socket;
 // here we poll project status, which is socket-independent).
 export class ProdusaClient {
-  constructor({ apiBase = 'https://api.produsa.app', token = '', pollIntervalMs = 5000, pollTimeoutMs = 1200000 } = {}) {
+  constructor({ apiBase = 'https://api.produsa.app', token = '', pollIntervalMs = 6000, pollTimeoutMs = 900000 } = {}) {
     Object.assign(this, { apiBase, token, pollIntervalMs, pollTimeoutMs });
   }
 
@@ -28,8 +28,10 @@ export class ProdusaClient {
   createProject({ name, description, type = 'webapp' }) {
     return this.req('/api/projects', {
       method: 'POST',
-      // Prototype-first (Rule #73): enter at 'new', not 'research'.
-      body: { name, stage: 'new', description, type, metadata: { original_idea: description, app_type: type } },
+      // NOTE: the deployed V2 API validates stage and ONLY accepts 'research' at
+      // create (verified 2026-05-23; 'new'/'discovery'/etc. → 400). Prototype-first
+      // (#73) is achieved by immediately calling build/instant, not the create stage.
+      body: { name, stage: 'research', description, type, metadata: { original_idea: description, app_type: type } },
     });
   }
 
@@ -41,14 +43,22 @@ export class ProdusaClient {
   retryDeploy(id) { return this.req(`/api/projects/${id}/build/retry-deploy`, { method: 'POST' }); }
 
   // Poll project status until predicate(project) is true (or timeout).
-  async pollUntil(id, predicate, log = () => {}) {
+  // failStages short-circuit (e.g. build re-blocked to 'discovery', or 'failed').
+  // stallMs: if build_events stop advancing for this long, bail (stuck build).
+  async pollUntil(id, predicate, log = () => {}, { failStages = ['discovery', 'failed', 'error'], stallMs = 240000 } = {}) {
     const deadline = Date.now() + this.pollTimeoutMs;
-    let last = '';
+    let last = '', lastEventTs = 0, lastProgressAt = Date.now(), started = false;
     while (Date.now() < deadline) {
       const p = await this.getProject(id).catch((e) => ({ _err: e.message }));
-      const stage = p.stage || p.project?.stage || p._err || '?';
-      if (stage !== last) { log(`    status: ${stage}`); last = stage; }
-      if (!p._err && predicate(p.project || p)) return p.project || p;
+      const proj = p.project || p;
+      const stage = proj.stage || p._err || '?';
+      if (stage !== last) { log(`    status: ${stage}`); last = stage; if (started && failStages.includes(stage)) throw new Error(`build re-blocked → stage '${stage}' for project ${id}`); }
+      if (!started && /building|prototyp|instant/i.test(stage)) started = true;
+      const ev = (proj.metadata?.build_events || []);
+      const ts = ev.length ? ev[ev.length - 1].ts : 0;
+      if (ts > lastEventTs) { lastEventTs = ts; lastProgressAt = Date.now(); const lbl = ev[ev.length - 1]?.payload?.label; if (lbl) log(`      · ${lbl}`); }
+      if (!p._err && predicate(proj)) return proj;
+      if (started && Date.now() - lastProgressAt > stallMs) throw new Error(`build STALLED for project ${id} (no build_events for ${Math.round(stallMs / 1000)}s; last stage '${stage}')`);
       await new Promise((r) => setTimeout(r, this.pollIntervalMs));
     }
     throw new Error(`pollUntil timeout for project ${id} (last status: ${last})`);

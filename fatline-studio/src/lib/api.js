@@ -46,10 +46,11 @@ export async function createProject({ name, description, type }) {
     method: 'POST',
     body: JSON.stringify({
       name,
-      // Prototype-first (Rule #73 / INSTANT_PIPELINE_SPEC): a new project enters at
-      // 'new' and flows new -> discovery -> instant_prototype. 'research' is a
-      // production-phase, info-layer activity and must not be the entry stage.
-      stage: 'new',
+      // The deployed V2 API only accepts stage:'research' at create (verified
+      // 2026-05-23 against api.produsa.app; other values 400). Prototype-first
+      // (#73) comes from calling build/instant right after discovery, not the
+      // create stage — so we create at 'research' and trigger the instant build.
+      stage: 'research',
       description,
       type: type || 'webapp',
       metadata: { original_idea: description, app_type: type || 'webapp' },

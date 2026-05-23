@@ -6,7 +6,7 @@ const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
 
 export class ModelClient {
-  constructor({ apiKey, model = 'claude-opus-4-7', maxTokens = 4096 }) {
+  constructor({ apiKey, model = 'claude-opus-4-7', maxTokens = 8192 }) {
     if (!apiKey) throw new Error('ModelClient: ANTHROPIC_API_KEY required (R9)');
     Object.assign(this, { apiKey, model, maxTokens });
   }
@@ -48,14 +48,27 @@ export class ModelClient {
   }
 }
 
-// Pull the first JSON object/array out of a model reply (handles ```json fences).
+// Pull the first balanced JSON object/array out of a model reply. String-aware
+// brace matching (handles ```json fences, prose around the JSON, and braces
+// inside string values). On truncated/invalid JSON, errors with context.
 export function extractJson(text) {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const candidate = fenced ? fenced[1] : text;
   const start = candidate.search(/[{[]/);
   if (start === -1) throw new Error(`No JSON in model reply: ${text.slice(0, 200)}`);
-  // Best-effort: try progressively shorter suffixes from the last closing brace.
-  const end = Math.max(candidate.lastIndexOf('}'), candidate.lastIndexOf(']'));
-  const slice = candidate.slice(start, end + 1);
-  return JSON.parse(slice);
+  const open = candidate[start];
+  const close = open === '{' ? '}' : ']';
+  let depth = 0, inStr = false, esc = false, end = -1;
+  for (let i = start; i < candidate.length; i++) {
+    const c = candidate[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+    } else if (c === '"') inStr = true;
+    else if (c === open) depth++;
+    else if (c === close) { depth--; if (depth === 0) { end = i; break; } }
+  }
+  if (end === -1) throw new Error(`Unbalanced/truncated JSON (depth ${depth}) in model reply of ${candidate.length} chars`);
+  return JSON.parse(candidate.slice(start, end + 1));
 }

@@ -145,20 +145,61 @@ export class LiveGenerator {
   _pid(jm) { return this.projectId || jm?.discovery?._projectId; }
 
   async discovery({ idea, surface, phone }) {
-    const currency = resolveCurrency({ phone, briefText: idea });
     const created = await this.api.createProject({ name: idea.slice(0, 60), description: idea });
-    this.projectId = created.id || created.project?.id || created.projectId;
+    this.projectId = created.project?.id || created.id || created.projectId;
     this.log(`    created project ${this.projectId}`);
-    const user = `One-line idea: ${idea}\nSurface: ${surface}. Resolved currency: ${currency.code} (${currency.symbol}).\n`
-      + `Run discovery. Return ONLY JSON with keys: app_type (marketplace|crm|saas|ecommerce|mobile|landing|webapp), `
-      + `target_users, primary_outcome, core_loop, platform, success_criteria (array), negative_constraints (array, >=1), `
-      + `risk_flags (array), discovery_answers (object), questions_asked (number; <=6 on whatsapp).`;
-    const d = await this.model.json({ system: this._sys('discovery', { discovery: {} }), user });
-    d.sufficient = !!(d.app_type && (d.negative_constraints || []).length);
-    d._currency = currency;
-    d.market_snapshot = d.market_snapshot || { currency };
-    d._projectId = this.projectId;
-    return d;
+
+    // Drive the backend's conversational discovery (this persists discovery_answers,
+    // which build/instant requires — Rule #72 is enforced server-side). The model
+    // (discovery-director SKILL) answers each adaptive question grounded in the idea.
+    const sys = this._sys('discovery', { discovery: {} });
+    let resp = await this.api.discoveryChat(this.projectId, idea);
+    let asked = 0;
+    const max = 6; // Rule #72b
+    while (!resp.isComplete && resp.question && asked < max) {
+      asked++;
+      this.log(`    discovery Q${asked}: ${String(resp.question).slice(0, 70)}…`);
+      const ans = await this.model.text({
+        system: sys,
+        user: `Idea: ${idea}\nDiscovery question: ${resp.question}\nAnswer concisely (1-2 sentences) as the founder. Plain text only, no preamble.`,
+      });
+      resp = await this.api.discoveryChat(this.projectId, ans.trim());
+    }
+
+    const proj = await this.api.getProject(this.projectId).then((r) => r.project || r);
+    const m = proj.metadata || {};
+    const cls = resp.classification || {};
+    const currency = { symbol: m.currency_symbol || '₹', code: m.currency_code || 'INR' };
+    const da = resp.discoveryAnswers || m.discovery_answers || {};
+
+    // Synthesize the structured discovery fields (and the explicit negative fence
+    // Rule #72 wants) from the completed conversation.
+    let synth = {};
+    try {
+      synth = await this.model.json({
+        system: sys,
+        user: `Idea: ${idea}\nClassification: ${JSON.stringify(cls)}\nDiscovery answers: ${JSON.stringify(da)}\n`
+          + `Return ONLY JSON: target_users, primary_outcome, core_loop, platform, success_criteria (array), `
+          + `negative_constraints (array, >=2 explicit anti-goals), risk_flags (array).`,
+      });
+    } catch { /* keep going with backend answers */ }
+
+    return {
+      app_type: cls.app_type || m.app_type || 'webapp',
+      target_users: synth.target_users || '',
+      primary_outcome: synth.primary_outcome || '',
+      core_loop: synth.core_loop || '',
+      platform: synth.platform || 'responsive web',
+      success_criteria: synth.success_criteria || [],
+      negative_constraints: synth.negative_constraints?.length ? synth.negative_constraints : ['no generic template feel'],
+      risk_flags: synth.risk_flags || [],
+      discovery_answers: da,
+      questions_asked: asked,
+      sufficient: !!resp.isComplete || Object.keys(da).length > 0,
+      market_snapshot: { currency, classification: cls },
+      _currency: currency,
+      _projectId: this.projectId,
+    };
   }
 
   async concept({ jm }) {
