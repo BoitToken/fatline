@@ -8,5 +8,5 @@
   "max_runtime": "1h",
   "quality_gate": "contract + style-fence + acceptance present; >=1 negative fence; 5-6 pages",
   "model": "anthropic/claude-opus-4-7",
-  "binding_rules": ["#72", "#73", "#74b", "#73b", "#74", "D1", "D2", "#44", "#45"]
+  "binding_rules": ["#72", "#73", "#74b", "#73b", "#74", "#79", "#B1", "D1", "D2", "#44", "#45"]
 }

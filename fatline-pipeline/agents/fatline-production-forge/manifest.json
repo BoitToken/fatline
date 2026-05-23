@@ -9,5 +9,5 @@
   "quality_gate": "R1 build passes; 3-cycle QA >=95; 6-step verification; delivery (#76)",
   "model": "anthropic/claude-opus-4-7",
   "trigger": "explicit promotion only (#73/#74b) + production_requested=true; paid (R5)",
-  "binding_rules": ["R1", "R3", "R4", "R5", "R9", "#73", "#74b", "#74", "#75", "#76", "#34", "#43", "D4", "D5", "D6", "#44", "#45"]
+  "binding_rules": ["R1", "R3", "R4", "R5", "R9", "#73", "#74b", "#74", "#75", "#76", "#78", "#80", "#82", "#83", "#85", "#86", "#87", "#B1", "#B2", "#34", "#43", "D4", "D5", "D6", "#44", "#45"]
 }

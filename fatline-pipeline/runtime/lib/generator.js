@@ -92,14 +92,33 @@ export class MockGenerator {
   }
 
   async produce({ jm }) {
+    const pages = jm.concept?.pages || [];
+    const criteria = jm.concept?.acceptance_criteria || [];
+    // Manifest signals (#77–#88). MockGenerator models a fully-built app that
+    // PASSES the Manifest; flip any field to see the gate stop the deploy.
+    const manifest = {
+      controls: pages.flatMap((p) => [{ id: `${p}:primary-cta`, wired: true }, { id: `${p}:nav`, wired: true }]), // #77
+      entities: [{ name: 'Order', persisted: true }, { name: 'Customer', persisted: true }],                       // #78
+      acceptance: criteria.map((c) => ({ criterion: c, test_passed: true })),                                      // #79
+      env: { referenced: ['DATABASE_URL', 'RAZORPAY_KEY'], declared: ['DATABASE_URL', 'RAZORPAY_KEY'], provisioned: ['DATABASE_URL', 'RAZORPAY_KEY'], fresh_boot: true, health_ok: true }, // #80
+      smoke: { target: 'live', steps: [{ name: 'signup', pass: true }, { name: 'core-action', pass: true }, { name: 'persist', pass: true }, { name: 'logout', pass: true }] }, // #81
+      auth: { signup: true, login: true, logout: true, session: true, protected_redirect: true, tenant_isolation: true }, // #82
+      security: { audit_clean: true, headers: true, sanitized: true, rate_limited: true, no_eval: true },          // #83
+      resilience: { error_boundary: true, errors_surfaced: true, has_404: true, has_500: true, no_unhandled: true }, // #84
+      integrations: [{ name: 'Razorpay', proven: true }, { name: 'SES email', proven: true }],                    // #85
+      observability: { health: true, logging: true, error_tracking: true, uptime: true },                         // #86
+      perf: { bundle_kb_gz: 210, api_p95_ms: 320, lighthouse: 92 },                                               // #87
+      source_scan: { text: '<html>real source, no stubs</html>' },                                                // #88
+    };
     return {
-      plan: { architecture: 'node+postgres', auth: 'email+oauth', integrations: ['Razorpay (INR)'] },
+      plan: { architecture: 'node+postgres', auth: 'email+oauth', integrations: ['Razorpay (INR)', 'SES email'] },
       deployment: {
         url: 'https://acme-quickstart.produsa.dev',
         six_step: { dns: true, ssl: true, https200: true, content: true, service: true, nginx: true },
       },
       delivered_links: { live: 'https://acme-quickstart.produsa.dev' },
       build_ok: true, link_generated: true, delivered: true,
+      manifest,
     };
   }
 }

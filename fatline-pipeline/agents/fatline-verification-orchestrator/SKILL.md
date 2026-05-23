@@ -124,4 +124,5 @@ This agent follows **`fatline-pipeline/FATBOT-RULES.md`** in full. The rules tha
   - verify `bundleManifestHTML()` ran during deploy (check build events).
 - **#76 — Delivery is part of done.** Distinguish four outcomes and never pass a "backend-green but user-got-nothing" run: (1) build failed, (2) build OK / link-gen failed, (3) build OK / surface delivery failed, (4) build + delivery OK. Route delivery failures to repair.
 - **D2 — Visual completeness** is a verification channel, not a nicety.
+- **#77–#88 — you run the Production Manifest.** Before any build is promoted to `live`, run the full Definition of Done ([MANIFEST-FATLINE.md](../../MANIFEST-FATLINE.md)): no dead controls (#77), persistence round-trip (#78), executable acceptance (#79), env/fresh-boot (#80), live smoke (#81), auth+tenant isolation (#82, critical), security (#83), resilience (#84), integrations proven (#85), observability (#86), perf budget (#87), no stubs (#88). **All must pass** — any failure is a STOP routed to repair, not a warning.
 - **#44 / #45** — carry this Manifest; emit `VERIFICATION-REPORT.md`.

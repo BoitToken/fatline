@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { loadAgents, systemPromptFor } from './agents.js';
 import { FOOTER, resolveCurrency } from './rules.js';
 import * as gates from './gates.js';
+import { productionManifest } from './manifest.js';
 
 export class Orchestrator {
   constructor({ generator, surface = 'cli', phone = '', log = () => {}, maxRepairCycles = 3 }) {
@@ -124,8 +125,20 @@ export class Orchestrator {
     this.log(`  gate #76 (prod) → ${gD.pass ? 'PASS' : 'FAIL'} (${gD.reason})`);
     if (!gD.pass) { jm.stage = 'repairing'; this._decide(jm, `#76 ${gD.outcome}`); return jm; }
 
+    // Production Manifest — the Definition of Done (#77–#88). Must fully pass before live.
+    const man = productionManifest(out.manifest || {});
+    jm.production.manifest = { score: man.score, items: man.items };
+    this.log(`  Manifest (#77–#88) → ${man.pass ? 'PASS' : 'FAIL'} (score ${man.score}, ${man.failed.length} failed)`);
+    for (const f of man.failed) this.log(`     ✗ ${f.id} ${f.name}: ${f.detail}`);
+    if (!man.pass) {
+      jm.stage = 'repairing';
+      this._decide(jm, `Manifest incomplete (${man.failed.map((f) => f.id).join(', ')}) → repair, not live`);
+      this._complete(jm, 'fatline-verification-orchestrator', 'failure', `manifest score ${man.score}`);
+      return jm;
+    }
+
     jm.stage = 'live';
-    this._decide(jm, `live at ${jm.production.deployment?.url}`);
+    this._decide(jm, `live at ${jm.production.deployment?.url} (manifest ${man.score}/100)`);
     return jm;
   }
 }

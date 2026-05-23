@@ -124,4 +124,5 @@ This agent follows **`fatline-pipeline/FATBOT-RULES.md`** in full. The rules tha
 - **#74 — Currency** carried forward from the prototype; never reset to USD; payment integrations follow locale.
 - **#75 — Bundler placeholder never ships.** Ensure real source is bundled (`bundleManifestHTML()` before the smoke gate); never deploy a stub when real pages exist.
 - **#76 — Delivery is part of done.** The live URL and continuation links must actually reach the user; a green deploy with no delivered link is a failure.
+- **#77–#88 — the Production Manifest is your Definition of Done** ([MANIFEST-FATLINE.md](../../MANIFEST-FATLINE.md)). You must hand FatJudge a build that satisfies *all* of it: no dead controls (#77), data persists (#78), env complete + fresh-boot (#80), auth + tenant isolation (#82), security gate (#83), integrations proven in test mode not mocked (#85), observability wired (#86), perf budget (#87). You do not get to call it live; the Manifest does.
 - **#34 / #43 — never say "live"** until 6-step verification passes and monitoring is active. **#44 / #45** — carry this Manifest; emit `PRODUCTION-HANDOFF.md` + `DEPLOY-HANDOFF.md`.

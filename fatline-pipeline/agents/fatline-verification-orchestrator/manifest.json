@@ -8,5 +8,6 @@
   "max_runtime": "15m/pass (10m/cycle)",
   "quality_gate": "score >=95 to approve; any P1 in C3 = fail; builder != judge",
   "model": "anthropic/claude-opus-4-7",
-  "binding_rules": ["#34", "#46", "#75", "#76", "D2", "D4", "#44", "#45"]
+  "binding_rules": ["#34", "#46", "#75", "#76", "#77", "#78", "#79", "#80", "#81", "#82", "#83", "#84", "#85", "#86", "#87", "#88", "D2", "D4", "#44", "#45"],
+  "runs_production_manifest": true
 }

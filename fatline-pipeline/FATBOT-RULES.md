@@ -258,6 +258,53 @@ ALL pass → share. ANY fail → fix silently, re-run all 6. **Rollback** on dep
 | Prototype | FatJudge 4-channel score | ≥95 |
 | Production | FatJudge 4-channel + 6-step verify + delivery | ≥95 + Rule #76 |
 | Deploy | 6-step verification | All pass |
+| **Live** | **Production Manifest (#77–#88)** | **all items pass** |
+
+---
+
+## Part E — Production Manifest (Definition of Done #77–#88)
+
+> The Manifest is the hard checklist that separates "looks done" from "is a deployed, working app." A build advances `production → live` ONLY when **every** item passes. A failed item is a STOP routed to repair (FatMender), not a warning. See [MANIFEST-FATLINE.md](./MANIFEST-FATLINE.md). Automated items are enforced + unit-tested in `runtime/lib/manifest.js`.
+
+### Rule #77 — No Dead Controls
+Every interactive element (button, link, form, menu) is wired to a real handler / route / endpoint. **Forbidden in shipped paths:** `onClick={()=>{}}`, `href="#"`, "coming soon", disabled-with-no-reason, or handlers that only `console.log`. Verification enumerates controls and confirms each has a working target.
+
+### Rule #78 — Persistence Round-Trip
+Every create/edit/delete actually writes to the database and survives a page reload. In-memory/local-only state that resets is a failure. Proof: `create → reload → record still present` (and `delete → reload → gone`).
+
+### Rule #79 — Executable Acceptance (DoD core)
+The app is NOT done until **every** criterion in `acceptance-tests.json` has a corresponding **passing automated test** (Playwright for journeys, API tests for endpoints). The Concept Architect writes the criteria; FatJudge refuses to pass until each has a green test. No criterion may be "manually verified" in production.
+
+### Rule #80 — Environment & Fresh-Boot Readiness
+Every `process.env.X` referenced in code is declared in `.env.example` AND provisioned in the deploy environment (no missing-env crash on first boot). The app boots from a **clean database**: migrations run up AND down idempotently, plus a seed. `/api/health` returns `{status:"ok"}`.
+
+### Rule #81 — Live Smoke Test
+The core user journey (signup → core action → data persists → logout) is executed against the **deployed subdomain** — not localhost, not staging. 6-step verification (#43/D6) proves the URL *responds*; #81 proves it *works*. Run after every deploy and every retry-deploy.
+
+### Rule #82 — Auth & Tenant Isolation
+Real signup / login / logout / session. Protected routes redirect unauthenticated users. **Authorization on every endpoint:** user A can never read or write user B's data. Tested with two seeded users. (Critical severity — a leak here blocks deploy.)
+
+### Rule #83 — Security Gate
+Before deploy: `npm audit` clean or every finding triaged; security headers present (CSP, HSTS, X-Content-Type-Options); all input validated + sanitized; user-supplied HTML rendered XSS-safe; rate limiting on auth + write endpoints; no `eval`/dynamic require. Extends R9 (secrets) to the full attack surface.
+
+### Rule #84 — Resilience
+A global error boundary (no white screen of death); API/network errors surfaced to the user (never swallowed); real 404 and 500 pages; zero unhandled promise rejections; graceful degradation when a third-party integration is down.
+
+### Rule #85 — Integrations Proven, Not Mocked
+Every integration declared in the contract is exercised in **test mode** and proven before live: email actually sends, payments complete (Razorpay/Stripe) with **webhooks handled + idempotency keys**, file upload stores, search queries return. R3 kills fake *data*; #85 kills fake *features*.
+
+### Rule #86 — Observability Minimum
+Before "live": a health-check endpoint, structured request/error logging, error tracking (Sentry-class), and an uptime monitor are all wired. You cannot operate what you cannot see.
+
+### Rule #87 — Performance Budget
+Bundle size within budget (warn >250KB gz, fail >400KB gz for first load), no N+1 queries on list endpoints, API p95 < 500ms, images optimized/lazy-loaded. Extends D3's Lighthouse ≥85.
+
+### Rule #88 — Stub/Placeholder Scan
+Shipped production paths contain no `TODO`, `FIXME`, `not implemented`, `Lorem ipsum`, `example@`, or hardcoded sample responses. Generalizes #75 (bundler placeholder) to all source.
+
+### Behavior rules
+- **#B1 — Plan + Self-Critique.** Before generating, each builder writes a short plan and critiques it against the negative fence + acceptance criteria. Measure twice, cut once.
+- **#B2 — Capability Honesty (anti-fake).** Never stub or fake a feature you cannot actually build. Tag it `unverified` and escalate (#49) rather than ship a hollow shell. This is the cultural rule behind #77 and #85.
 
 ---
 
@@ -267,12 +314,12 @@ Every FatBot is bound by **all** rules. This shows which bite hardest per role (
 
 | FatBot | Hardest-binding rules |
 |--------|----------------------|
-| Discovery Director (FatScout) | #72, #72b, #72c, #73b, #44, #45 |
-| Concept Architect | #72 (inject answers), #73/#74b (no production trigger), #74 (currency in tokens), D1, D2 |
-| Prototype Builder (FatProto) | R3 (mock realism), R10, #34, #74, D1, D2, D3 |
-| Production Forge (FatForge) | R1, R3, R4, R5, R9, #73, #74b, D4, D5, D6 |
-| Verification Orchestrator (FatJudge) | #34, #46, #75, #76, D2, D4 (rubric), builder≠judge |
-| Repair Engineer | #37, #75, #76, R8, bounded-scope (#48 repair_log) |
+| Discovery Director (FatScout) | #72, #72b, #72c, #73b, #44, #45, #B2 |
+| Concept Architect | #72 (inject answers), #73/#74b (no production trigger), #74 (currency in tokens), **#79 (write executable acceptance)**, D1, D2 |
+| Prototype Builder (FatProto) | R3, R10, #34, #74, **#77, #84, #87, #88, #B1, #B2**, D1, D2, D3 |
+| Production Forge (FatForge) | R1, R3, R4, R5, R9, #73, #74b, **#78, #80, #82, #83, #85, #86, #87, #B1, #B2**, D4, D5, D6 |
+| Verification Orchestrator (FatJudge) | #34, #46, #75, #76, **#77–#88 (runs the Production Manifest)**, D2, D4 |
+| Repair Engineer | #37, #75, #76, **#77/#78/#82/#88 (manifest-failure repairs)**, R8, #48 |
 
 ---
 

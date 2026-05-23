@@ -87,7 +87,8 @@
         "approved_by": { "type": "string" },
         "plan": { "type": "object" },
         "deployment": { "type": "object" },
-        "delivered_links": { "type": "object" }
+        "delivered_links": { "type": "object" },
+        "manifest": { "type": "object" }
       }
     },
     "decision_log": { "type": "array" },

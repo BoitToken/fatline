@@ -9,5 +9,5 @@
   "quality_gate": "highest-severity defects resolved; diff minimal + explainable",
   "model": "anthropic/claude-opus-4-7",
   "conditional": true,
-  "binding_rules": ["#37", "#75", "#76", "R8", "#48", "#44", "#45"]
+  "binding_rules": ["#37", "#75", "#76", "#77", "#78", "#82", "#88", "R8", "#48", "#44", "#45"]
 }
