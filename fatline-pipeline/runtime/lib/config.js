@@ -1,7 +1,29 @@
 // Runtime config + safety gates for the live pipeline.
-// Secrets come ONLY from env (Rule R9). Production (paid, destructive) calls are
+// Secrets come ONLY from env (Rule R9), optionally seeded from a gitignored
+// env file kept OUTSIDE the repo. Production (paid, destructive) calls are
 // gated behind --allow-production so nothing fires against prod by accident.
+import { readFileSync, existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
+// Load KEY=VALUE lines from a dotenv file into process.env (without overwriting).
+function loadEnvFile(path) {
+  if (!path || !existsSync(path)) return;
+  for (const line of readFileSync(path, 'utf8').split('\n')) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  }
+}
+
+// Seed secrets from (in order): $FATLINE_ENV_FILE, ~/.fatline-secrets.env, ./.env.
+export function loadEnvFiles() {
+  loadEnvFile(process.env.FATLINE_ENV_FILE);
+  loadEnvFile(join(homedir(), '.fatline-secrets.env'));
+  loadEnvFile(join(process.cwd(), '.env'));
+}
+
 export function loadConfig(argv = process.argv) {
+  loadEnvFiles();
   const has = (n) => argv.includes(`--${n}`);
   const opt = (n, d) => {
     const i = argv.indexOf(`--${n}`);

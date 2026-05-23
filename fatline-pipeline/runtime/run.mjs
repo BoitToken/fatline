@@ -39,6 +39,25 @@ if (cfg.probe) {
   } catch (e) { log(`FAIL — ${e.message}`); process.exit(1); }
 }
 
+// --model-test: prove the model integration (needs only ANTHROPIC_API_KEY).
+// Runs the discovery-director reasoning on a sample idea; prints the JSON (no secrets).
+if (arg('model-test', false)) {
+  if (!cfg.anthropicKey) { console.error('✗ ANTHROPIC_API_KEY not found (env or ~/.fatline-secrets.env)'); process.exit(2); }
+  const { ModelClient } = await import('./lib/modelClient.js');
+  const { loadAgents, systemPromptFor } = await import('./lib/agents.js');
+  const idea = arg('idea', 'a booking app for home cleaners in Mumbai');
+  log(`=== model-test (model ${cfg.model}) — discovery reasoning ===`);
+  log(`idea: ${idea}\n`);
+  const sys = systemPromptFor('discovery', loadAgents(), { discovery: {} });
+  const t0 = Date.now();
+  const out = await new ModelClient({ apiKey: cfg.anthropicKey, model: cfg.model }).json({
+    system: sys,
+    user: `One-line idea: ${idea}\nReturn ONLY JSON: app_type, target_users, primary_outcome, core_loop, platform, success_criteria (array), negative_constraints (array, >=1), risk_flags (array), questions_asked (number).`,
+  });
+  log(`model replied in ${Date.now() - t0}ms:\n` + JSON.stringify(out, null, 2));
+  process.exit(0);
+}
+
 const idea = arg('idea', 'a simple webapp to track daily habits and streaks');
 const surface = arg('surface', 'cli');
 const phone = arg('phone', '');

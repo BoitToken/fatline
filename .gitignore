@@ -2,3 +2,7 @@ node_modules/
 dist/
 fatline-pipeline/runtime/out/
 *.log
+# never commit secrets (Rule R9) — runtime loads ~/.fatline-secrets.env from outside the repo
+.env
+*.secrets.env
+.fatline-secrets.env
