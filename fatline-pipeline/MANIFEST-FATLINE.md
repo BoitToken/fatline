@@ -55,4 +55,5 @@ production build → FatJudge 4-channel (#46) → #76 delivery
 1. ✅ Rules #77–#88 + #B1/#B2 in FATBOT-RULES.md Part E.
 2. ✅ `runtime/lib/manifest.js` + unit tests; wired into `orchestrator.promoteToProduction`.
 3. ✅ Binding matrix + per-agent `manifest.json` updated.
-4. ⏳ `LiveGenerator` emits real Manifest signals from `api.produsa.app` (build workers + Playwright smoke + `npm audit` + env diff). Until then the MockGenerator demonstrates the gate offline.
+4. ✅ `LiveGenerator` wired (`runtime/lib/generator.js`): Anthropic model reasoning + `api.produsa.app` build endpoints + pure Manifest signal extractors (`runtime/lib/signals.js`, unit-tested). `--probe` confirms live connectivity (health 200).
+5. ⏳ Backend must emit the remaining Manifest signals it owns via `project.metadata.manifest_signals` — `#78` persistence round-trip, `#82` two-user isolation, `#83` `npm audit`+headers, `#85` test-mode integration runs, `#86` observability wiring, `#87` p95/lighthouse. Signals not derivable client-side and not supplied stay absent → the Manifest fails them (capability honesty, #B2). Full visual/runtime channels need a Playwright worker.

@@ -29,10 +29,26 @@ new → discovery(#72) → concept → prototype(#73 free, #75 guard) → verify
 
 Rule mechanics in `lib/rules.js`: `resolveCurrency` (#74, ₹ default), `FOOTER` (R10), `discoveryAnswersBlock` (#72 verbatim injection).
 
-## Wiring the live pipeline
-Implement the methods on `LiveGenerator` (`lib/generator.js`) — discovery → `POST /api/discovery/questions`, prototype → `POST /api/projects/:id/build/instant`, production → `POST /api/projects/:id/build/production`, verify → the 4-channel verifier — then pass it to `new Orchestrator({ generator })`. The FSM, gates, and artifact schema stay identical.
+## The live pipeline (`LiveGenerator`) — wired
+
+`LiveGenerator` (`lib/generator.js`) drives the real pipeline:
+- **model reasoning** via `lib/modelClient.js` (Anthropic Messages API, prompt-cached system prompts) — runs the discovery/concept/verify/repair SKILLs;
+- **build endpoints** via `lib/produsaClient.js` (`api.produsa.app`): create project → `build/instant` → poll → `build/production`;
+- **Manifest signals** via `lib/signals.js` (pure, unit-tested): `#77` dead-control scan, `#88` stub scan, `R10` footer, `#80` env diff, `#84` resilience markers, `#87` bundle size — derived from the deployed HTML/source; signals it can't compute come from the backend's `metadata.manifest_signals`, and anything still unknown stays absent → the Manifest fails it (capability honesty, #B2).
+
+```bash
+export ANTHROPIC_API_KEY=…  PRODUSA_TOKEN=…           # R9: env only
+node run.mjs --probe                                  # read-only GET /api/health
+node run.mjs --live --idea "a CRM for plumbers"       # discovery→concept→prototype→verify (FREE)
+node run.mjs --live --idea "…" --promote --allow-production   # also fire the PAID prod build
+```
+
+**Safety:** without `--live` it's fully offline. With `--live` but **without** `--allow-production`, the paid `POST /build/production` is refused (prototype-only). The orchestrator still enforces every gate (R5 credits, #73/#74b promotion, Manifest #77–#88).
+
+> Some `api.produsa.app` response field names in `LiveGenerator` are best-effort against the studio's `api.js` contract; confirm/adjust against live responses (the build flow also emits socket events — polling is used here for socket-independence).
 
 ## Files
-- `run.mjs` — CLI · `lib/orchestrator.js` — FSM · `lib/gates.js` — guards · `lib/rules.js` — rule mechanics
+- `run.mjs` — CLI · `lib/orchestrator.js` — FSM · `lib/gates.js` — flow gates · `lib/manifest.js` — Production Manifest · `lib/rules.js` — rule mechanics
 - `lib/agents.js` — SKILL loader + prompt assembly · `lib/generator.js` — Mock/Live · `lib/validate.js` — schema validator
-- `schema/job-memory.schema.json` — the artifact spine · `test/gates.test.mjs` — gate tests
+- `lib/config.js` — env+flags+safety · `lib/modelClient.js` — Anthropic · `lib/produsaClient.js` — api.produsa.app · `lib/signals.js` — Manifest extractors
+- `schema/job-memory.schema.json` — artifact spine · `test/{gates,manifest,signals}.test.mjs` — 37 tests
