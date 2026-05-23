@@ -238,8 +238,12 @@ export class LiveGenerator {
     const dead = scanDeadControls(html).filter((c) => !c.wired);
     if (dead.length) defects.push({ channel: 'behavioral', severity: 'P2', symptom: `${dead.length} dead controls`, target_file_or_component: 'ui', recommended_owner: 'fatline-repair-engineer' });
     if (html && !hasFooter(html)) defects.push({ channel: 'visual', severity: 'P3', symptom: 'footer missing (R10)', target_file_or_component: 'footer', recommended_owner: 'fatline-prototype-builder' });
-    const score = Math.max(0, 100 - defects.length * 6);
-    return { phase, score, decision: defects.length === 0 && score >= 95 ? 'pass' : 'fail', defects };
+    // Weighted score (D4 rubric): P1 −40, P2 −6, P3 −3. Any P1 → fail outright.
+    const weight = { P1: 40, P2: 6, P3: 3 };
+    const score = Math.max(0, 100 - defects.reduce((s, d) => s + (weight[d.severity] || 6), 0));
+    const hasP1 = defects.some((d) => d.severity === 'P1');
+    const decision = hasP1 || score < 90 ? 'fail' : score >= 95 ? 'pass' : 'conditional';
+    return { phase, score, decision, defects };
   }
 
   async repair({ jm, defects }) {

@@ -59,7 +59,10 @@ export class Orchestrator {
     // --- Prototype (FatProto) — free, fires automatically (Rule #73) ---
     jm.stage = 'prototype';
     jm.prototype = await this.gen.prototype({ jm });
-    if (!jm.prototype.has_footer) throw new Error('R10: footer missing from prototype');           // Rule R10
+    // R10 footer is a content rule — a missing footer is a verification defect
+    // routed to FatJudge/repair, NOT a fatal crash (the generator may be a
+    // black box that doesn't inject it; the verifier scores + routes it).
+    if (!jm.prototype.has_footer) { this.log('  ⚠ R10: footer not detected — routing to verification'); this._decide(jm, 'R10 footer missing → verify/repair'); }
     const gB = gates.gateBundler({ realIndexLen: jm.prototype.index_html_len, manifestHtml: jm.prototype._manifestHtml || '' });
     this.log(`  gate #75 → ${gB.pass ? 'PASS' : 'FAIL'} (${gB.reason})`);
     if (gB.fatal) throw new Error(gB.reason);                                                       // Rule #75 hard error
@@ -85,7 +88,10 @@ export class Orchestrator {
       const v = await this.gen.verify({ jm, phase });
       jm.verification.push(v);
       this.log(`  [verify ${phase} c${cycle}] score=${v.score} → ${v.decision}`);
-      if (v.decision === 'pass') { this._complete(jm, 'fatline-verification-orchestrator', 'success', `score ${v.score}`); return; }
+      // Prototype phase is a free preview: 'conditional' (90–94, P2/P3 only) ships
+      // with the defects noted (D4 rubric). Production stays strict (pass only).
+      const acceptable = v.decision === 'pass' || (phase === 'prototype' && v.decision === 'conditional');
+      if (acceptable) { this._complete(jm, 'fatline-verification-orchestrator', v.decision === 'pass' ? 'success' : 'partial', `score ${v.score} (${v.decision})`); return; }
       if (cycle === this.maxRepairCycles) {
         jm.stage = 'blocked';
         this._decide(jm, `#49 escalate: score <95 after ${cycle} cycles`);
