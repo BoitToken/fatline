@@ -209,13 +209,23 @@ export class LiveGenerator {
     return this.model.json({ system: this._sys('concept', jm), user });
   }
 
-  async prototype({ jm }) {
+  async prototype({ jm, rebuild = false }) {
     const id = this._pid(jm);
+    this.log(`    build/instant ${rebuild ? 're-fired (repair)' : 'fired'} for ${id}; polling status…`);
     await this.api.buildInstant(id);
-    this.log(`    build/instant fired for ${id}; polling status…`);
-    const p = await this.api.pollUntil(id, (pr) => /instant_prototype|prototype|ready|live/i.test(pr.stage || '') || pr.prototype_index_html, this.log);
+    // A stalled/timed-out build is NOT a crash — it's an incomplete artifact the
+    // verify→repair loop owns (Fatline mandate). Catch the stall and report it.
+    let p, stalled = false;
+    try {
+      p = await this.api.pollUntil(id, (pr) => /instant_prototype|prototype|ready|live/i.test(pr.stage || '') || pr.prototype_index_html, this.log);
+    } catch (e) {
+      stalled = true;
+      this.log(`    ⚠ build did not complete: ${e.message}`);
+      p = await this.api.getProject(id).then((r) => r.project || r).catch(() => ({}));
+    }
     const indexHtml = p.prototype_index_html || '';
     const pages = (p.prototype_manifest?.pages || []).map((x) => x.name || x.id) || Object.keys(p.prototype_pages || {});
+    const complete = indexHtml.length > 10_000; // real prototype saved
     return {
       pages,
       index_html_len: indexHtml.length,
@@ -225,6 +235,9 @@ export class LiveGenerator {
       delivered_links: { proto: p.metadata?.proto_url || p.proto_url, studio: p.metadata?.studio_url || `https://produsa.dev/studio/${id}` },
       _manifestHtml: p.manifest_html || indexHtml,
       _indexHtml: indexHtml,
+      _incomplete: !complete,
+      _stalled: stalled,
+      pagesBuilt: pages.length,
     };
   }
 

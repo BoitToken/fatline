@@ -64,6 +64,28 @@ export class Orchestrator {
     // --- Prototype (FatProto) — free, fires automatically (Rule #73) ---
     jm.stage = 'prototype';
     jm.prototype = await this.gen.prototype({ jm });
+
+    // Build self-heal (the Fatline mandate, applied to the build): an
+    // incomplete/stalled build is a verification FAILURE, not a crash. FatJudge
+    // flags it P1, FatMender re-fires the build, we re-verify — bounded by the
+    // repair budget — and only escalate (#49) if it stays unrecoverable. Work
+    // already saved by the backend is preserved across re-fires.
+    for (let attempt = 1; jm.prototype._incomplete && attempt <= this.maxRepairCycles; attempt++) {
+      jm.verification.push({ phase: 'prototype', score: 40, decision: 'fail', defects: [{ channel: 'runtime', severity: 'P1', symptom: `build ${jm.prototype._stalled ? 'stalled' : 'incomplete'} (${jm.prototype.pagesBuilt} pages, index ${jm.prototype.index_html_len}B)`, target_file_or_component: 'instant-build', recommended_owner: 'fatline-repair-engineer' }] });
+      this.log(`  [verify build] FAIL — incomplete build → FatMender re-fire #${attempt}/${this.maxRepairCycles}`);
+      this._complete(jm, 'fatline-verification-orchestrator', 'failure', 'build incomplete');
+      jm.repair_log.push({ defect: 'build stalled/incomplete', action: 're-fire build/instant', attempt, at: new Date().toISOString() });
+      this._complete(jm, 'fatline-repair-engineer', 'success', `re-fire build attempt ${attempt}`);
+      jm.prototype = await this.gen.prototype({ jm, rebuild: true });
+    }
+    if (jm.prototype._incomplete) {
+      jm.stage = 'blocked';
+      this._decide(jm, `#49 escalate: build still incomplete after ${this.maxRepairCycles} repair re-fires`);
+      this._complete(jm, 'fatline-verification-orchestrator', 'failure', 'build unrecoverable');
+      mark('build');
+      return jm;
+    }
+
     // R10 footer is a content rule — a missing footer is a verification defect
     // routed to FatJudge/repair, NOT a fatal crash (the generator may be a
     // black box that doesn't inject it; the verifier scores + routes it).
