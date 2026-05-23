@@ -1,66 +1,53 @@
-import { useState } from 'react'
-import Dashboard from './views/Dashboard.jsx'
-import CreateProject from './views/CreateProject.jsx'
-import DiscoveryWizard from './views/DiscoveryWizard.jsx'
-import StudioShell from './views/StudioShell.jsx'
+import { useEffect, useState } from 'react';
+import { isAuthed, setToken, fetchMe, setUser } from './lib/api.js';
+import AuthScreen from './components/AuthScreen.jsx';
+import Dashboard from './views/Dashboard.jsx';
+import StudioShell from './views/StudioShell.jsx';
 
 export default function App() {
-  const [view, setView] = useState('dashboard') // dashboard | create | discovery | studio
-  const [projectId, setProjectId] = useState(null)
+  const [authed, setAuthed] = useState(isAuthed());
+  const [booting, setBooting] = useState(true);
+  const [route, setRoute] = useState({ view: 'dashboard', projectId: null });
 
+  // Handle OAuth redirect callbacks (?token=...&error=...) and deep links (#/studio/:id).
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const token = url.searchParams.get('token') || url.searchParams.get('jwt');
+    if (token) {
+      setToken(token);
+      setAuthed(true);
+      url.searchParams.delete('token');
+      url.searchParams.delete('jwt');
+      window.history.replaceState({}, '', url.pathname + url.hash);
+    }
+    const m = window.location.hash.match(/studio\/(\d+)/);
+    if (m) setRoute({ view: 'studio', projectId: Number(m[1]) });
+    setBooting(false);
+  }, []);
+
+  // Hydrate the cached user once authed.
+  useEffect(() => {
+    if (!authed) return;
+    fetchMe().then((u) => u && setUser(u)).catch(() => {});
+  }, [authed]);
+
+  const openStudio = (projectId) => {
+    setRoute({ view: 'studio', projectId });
+    window.history.replaceState({}, '', `#/studio/${projectId}`);
+  };
   const goDashboard = () => {
-    setProjectId(null)
-    setView('dashboard')
+    setRoute({ view: 'dashboard', projectId: null });
+    window.history.replaceState({}, '', '#/');
+  };
+
+  if (booting) {
+    return <div className="auth-wrap"><div className="spinner" /></div>;
   }
-
-  const goCreate = () => setView('create')
-
-  const goDiscovery = (id) => {
-    setProjectId(id)
-    setView('discovery')
+  if (!authed) {
+    return <AuthScreen onAuthed={() => setAuthed(true)} />;
   }
-
-  const goStudio = (id) => {
-    setProjectId(id)
-    setView('studio')
+  if (route.view === 'studio' && route.projectId) {
+    return <StudioShell projectId={route.projectId} onBack={goDashboard} onLogout={() => setAuthed(false)} />;
   }
-
-  const handleSelectProject = (id) => {
-    // If project already has discovery_complete, skip to studio
-    // Otherwise go to discovery. We let StudioShell handle state detection,
-    // but for a snappier UX we could pre-check. For now go to studio always.
-    goStudio(id)
-  }
-
-  const handleCreated = (id) => {
-    goDiscovery(id)
-  }
-
-  const handleDiscoveryComplete = (id) => {
-    goStudio(id)
-  }
-
-  const handleDiscoverySkip = (id) => {
-    goStudio(id)
-  }
-
-  if (view === 'create') {
-    return <CreateProject onCreated={handleCreated} onBack={goDashboard} />
-  }
-
-  if (view === 'discovery' && projectId) {
-    return (
-      <DiscoveryWizard
-        projectId={projectId}
-        onComplete={handleDiscoveryComplete}
-        onSkip={handleDiscoverySkip}
-      />
-    )
-  }
-
-  if (view === 'studio' && projectId) {
-    return <StudioShell projectId={projectId} onBack={goDashboard} />
-  }
-
-  return <Dashboard onSelectProject={handleSelectProject} onCreateProject={goCreate} />
+  return <Dashboard onOpenStudio={openStudio} onLogout={() => setAuthed(false)} />;
 }
