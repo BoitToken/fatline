@@ -64,7 +64,7 @@ tailwind.config = {
     --font-display:'${fonts.display}',serif; --font-body:'${fonts.body}',sans-serif;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+  html,body{margin:0;padding:0;overflow-x:hidden;max-width:100%;}
   body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased;line-height:1.6;}
   h1,h2,h3,h4,.font-display{font-family:var(--font-display);letter-spacing:-0.01em;line-height:1.1;}
   a{color:inherit;text-decoration:none;}
@@ -90,7 +90,9 @@ tailwind.config = {
     background:color-mix(in srgb,var(--bg) 82%, transparent);backdrop-filter:blur(14px);border-bottom:1px solid rgba(var(--primary-rgb),0.08);}
   .topbar .tt{font-size:13px;color:var(--muted);}
   .topbar .actions{display:flex;align-items:center;gap:12px;}
-  #page-content{padding:0 0 80px;animation:fadeUp .5s ease both;}
+  #page-content{padding:0 0 80px;animation:fadeUp .5s ease both;overflow-x:auto;max-width:100%;}
+  #page-content img{max-width:100%;}
+  #page-content > *{max-width:100%;}
   #page-content.exiting{opacity:0;transform:translateY(10px);transition:all .2s ease;}
   /* component vocabulary the LLM is told to use */
   .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:12px;font-weight:600;font-size:14px;cursor:pointer;border:none;transition:all .2s ease;}

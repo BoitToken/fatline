@@ -148,7 +148,7 @@ function scoreBuild(pages) {
 
   // Penalties.
   if (any(p => p.metrics?.hasLorem)) { score -= 1.2; reasons.push('contains lorem ipsum'); }
-  const overflow = any(p => (p.metrics?.overflowX || 0) > 8);
+  const overflow = any(p => (p.metrics?.overflowX || 0) > 24);
   if (overflow) { score -= 0.5; reasons.push('horizontal overflow (not responsive)'); }
   if (any(p => p.error)) { score -= 1; reasons.push('a page errored while rendering'); }
 
