@@ -39,6 +39,23 @@ if (cfg.probe) {
   } catch (e) { log(`FAIL — ${e.message}`); process.exit(1); }
 }
 
+// --cf-probe: confirm the Cloudflare token + report what it can do (read-only).
+if (arg('cf-probe', false)) {
+  if (!cfg.cfToken) { console.error('✗ no CF token (CLOUDFLARE_API_TOKEN / CF_CLAUDE_TOKEN in env or ~/.fatline-secrets.env)'); process.exit(2); }
+  const { CloudflareClient } = await import('./lib/cloudflareClient.js');
+  const cf = new CloudflareClient({ token: cfg.cfToken, accountId: cfg.cfAccount });
+  log('=== cf-probe: Cloudflare token capabilities ===');
+  try {
+    const cap = await cf.capabilities();
+    log(`accounts: ${cap.accounts ? 'OK' : 'no'}`);
+    log(`zones: ${cap.zones.map((z) => z.name).join(', ') || 'none'}`);
+    log(`dns records: ${cap.dns ? 'OK (can read/write DNS)' : 'no'}`);
+    log(`pages deploy: ${cap.pages ? 'OK' : 'NOT authorized (DNS-scoped token)'}`);
+    log(cap.dns ? '\n✓ usable for the deploy DNS step (subdomain records).' : '\n✗ token cannot manage DNS.');
+    process.exit(cap.dns ? 0 : 1);
+  } catch (e) { log(`FAIL — ${e.message}`); process.exit(1); }
+}
+
 // --model-test: prove the model integration (needs only ANTHROPIC_API_KEY).
 // Runs the discovery-director reasoning on a sample idea; prints the JSON (no secrets).
 if (arg('model-test', false)) {

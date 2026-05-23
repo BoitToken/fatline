@@ -39,6 +39,8 @@ export function loadConfig(argv = process.argv) {
     token: process.env.PRODUSA_TOKEN || '',
     model: opt('model', process.env.FATLINE_MODEL || 'claude-opus-4-7'),
     anthropicKey: process.env.ANTHROPIC_API_KEY || '',
+    cfToken: process.env.CLOUDFLARE_API_TOKEN || process.env.CF_CLAUDE_TOKEN || process.env.CF_MARKITA_TOKEN || '',
+    cfAccount: process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_CLAUDE_ACCOUNT || '',
     pollIntervalMs: Number(opt('poll-ms', 5000)),
     pollTimeoutMs: Number(opt('poll-timeout-ms', 1000 * 60 * 20)),
   };
