@@ -41,16 +41,18 @@ export function gateCredits(balance, estimate) {
 }
 
 // Rule #75 — bundler placeholder must NEVER ship when real source exists. Hard error.
-const PLACEHOLDER_MARKERS = ['Component rendered in manifest build', 'Component rendered', 'Loading...', 'placeholder'];
+// Only the SPECIFIC bundler-stub string counts — NOT generic words like
+// "placeholder"/"Loading..." which appear in legitimate HTML (e.g. <input
+// placeholder="…">, loading states). The real signal is the stub string and/or a
+// manifest that is suspiciously small versus the real source.
+const STUB_STRINGS = ['Component rendered in manifest build', 'Component rendered in manifest'];
 export function gateBundler({ realIndexLen = 0, manifestHtml = '' }) {
-  const looksPlaceholder = PLACEHOLDER_MARKERS.some((m) => manifestHtml.includes(m));
+  const isStub = STUB_STRINGS.some((m) => manifestHtml.includes(m));
   const manifestLen = manifestHtml.length;
-  // Real source big but manifest tiny/placeholder → the 2026-05-07 incident.
-  if (realIndexLen > 50_000 && (manifestLen < 10_000 || looksPlaceholder)) {
-    return { pass: false, fatal: true, reason: `#75 violation: real source ${realIndexLen}B but manifest ${manifestLen}B${looksPlaceholder ? ' (placeholder)' : ''} — re-bundle required` };
-  }
-  if (looksPlaceholder && realIndexLen > 0) {
-    return { pass: false, fatal: true, reason: '#75 violation: placeholder markers present with real source' };
+  // Real source big but manifest tiny → the 2026-05-07 House-of-Presence incident.
+  const tinyVsReal = realIndexLen > 50_000 && (manifestLen < 10_000 || manifestLen < realIndexLen * 0.4);
+  if (isStub || tinyVsReal) {
+    return { pass: false, fatal: true, reason: `#75 violation: real source ${realIndexLen}B, manifest ${manifestLen}B${isStub ? ' (stub string present)' : ' (too small vs real)'} — re-bundle required` };
   }
   return { pass: true, reason: `bundle ok (${manifestLen}B)` };
 }

@@ -38,6 +38,9 @@ export class Orchestrator {
   // Run the FREE path: discovery → concept → prototype → verify/repair → ready_to_build.
   async runToPrototype(idea) {
     const jm = this.newJob(idea);
+    jm.timings = {};
+    let _t = Date.now();
+    const mark = (phase) => { const now = Date.now(); jm.timings[phase] = +((now - _t) / 1000).toFixed(1); this.log(`  ⏱ ${phase}: ${jm.timings[phase]}s`); _t = now; };
 
     // --- Discovery (FatScout) ---
     jm.stage = 'discovery';
@@ -49,12 +52,14 @@ export class Orchestrator {
     this.log(`  gate #72 → ${g72.pass ? 'PASS' : 'PAUSE'} (${g72.reason})`);
     if (!g72.pass) { jm.stage = 'blocked'; this._decide(jm, g72.signal || g72.reason); return jm; }
     this._complete(jm, 'fatline-discovery-director', 'success', 'discovery sufficient');
+    mark('discovery');
 
     // --- Concept (FatArchitect) ---
     jm.stage = 'concept';
     jm.concept = await this.gen.concept({ jm });
     this._decide(jm, `concept: ${jm.concept.project_name} (${jm.concept.pages.length} pages)`);
     this._complete(jm, 'fatline-concept-architect', 'success', 'contract + fence + acceptance ready');
+    mark('concept');
 
     // --- Prototype (FatProto) — free, fires automatically (Rule #73) ---
     jm.stage = 'prototype';
@@ -67,16 +72,21 @@ export class Orchestrator {
     this.log(`  gate #75 → ${gB.pass ? 'PASS' : 'FAIL'} (${gB.reason})`);
     if (gB.fatal) throw new Error(gB.reason);                                                       // Rule #75 hard error
     this._complete(jm, 'fatline-prototype-builder', 'success', `${jm.prototype.pages.length} pages`);
+    mark('build');
 
     // --- Verify + bounded repair loop (FatJudge ⇄ Repair) ---
     await this._verifyRepairLoop(jm, 'prototype');
+    mark('verify');
 
     // --- Delivery check (Rule #76) ---
     const links = jm.prototype.delivered_links || {};
-    const gD = gates.gateDelivery({ buildOk: true, linkGenerated: !!links.proto, delivered: !!links.studio });
+    // For an instant prototype the deliverable is the preview/studio link
+    // (no subdomain until production), so either link counts as "generated".
+    const gD = gates.gateDelivery({ buildOk: true, linkGenerated: !!(links.proto || links.studio), delivered: !!(links.studio || links.proto) });
     this.log(`  gate #76 → ${gD.pass ? 'PASS' : 'FAIL'} (${gD.reason})`);
     if (!gD.pass) { jm.stage = 'repairing'; this._decide(jm, `#76 ${gD.outcome} → repair`); return jm; }
 
+    jm.timings.total = +Object.values(jm.timings).reduce((a, b) => a + b, 0).toFixed(1);
     jm.stage = 'ready_to_build'; // explicit promotion required next (Rule #73/#74b)
     this._decide(jm, 'prototype verified + delivered; awaiting explicit build approval (#73)');
     return jm;

@@ -99,8 +99,17 @@ log(`surface: ${surface}  phone: ${phone || '(none)'}\n`);
 
 const orch = new Orchestrator({ generator, surface, phone, log });
 
+const t0 = Date.now();
 const jm = await orch.runToPrototype(idea);
+const wall = ((Date.now() - t0) / 1000).toFixed(1);
 log(`\n-- after free path: stage=${jm.stage}, verifications=${jm.verification.length}, repairs=${jm.repair_log.length}`);
+if (jm.timings) {
+  log(`\n=== TIMING (wall ${wall}s) ===`);
+  for (const [k, v] of Object.entries(jm.timings)) log(`  ${k.padEnd(10)} ${v}s`);
+  log(`  (build is the V2.5 instant engine; discovery+concept+verify is Fatline overhead)`);
+}
+const link = jm.prototype?.delivered_links || {};
+if (link.studio || link.proto) log(`\n🔗 prototype: ${link.proto || link.studio}${link.proto && link.studio ? `  · studio: ${link.studio}` : ''}`);
 
 if (promote) {
   log(`\n=== explicit promotion requested (--promote) ===`);
