@@ -8,7 +8,12 @@ export const GOOGLE_CLIENT_ID =
   '836230886355-odist15j1koc4lh0kh21c29df6haj01u.apps.googleusercontent.com';
 
 export function getApiBase() {
-  return localStorage.getItem('fatline_api_base') || DEFAULT_API_BASE;
+  // Only honour an explicit api.produsa.app override; ignore stale/dead bases
+  // (e.g. a leftover `https://api.produsa.dev` from the old build's Settings).
+  const stored = localStorage.getItem('fatline_api_base');
+  if (stored && /^https:\/\/api\.produsa\.app/.test(stored)) return stored;
+  if (stored) localStorage.removeItem('fatline_api_base'); // clear stale value
+  return DEFAULT_API_BASE;
 }
 export function setApiBase(base) {
   if (base) localStorage.setItem('fatline_api_base', base);
