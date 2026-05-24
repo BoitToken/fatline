@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   getProject, chatHistory, sendChat, previewExists, previewManifest, previewUrl,
   getBuildStatus, buildProduction, deploy, deployStatus, listFiles, readFile,
+  discoveryChat, buildInstant,
 } from '../lib/api.js';
 import { joinProject, leaveProject, onEvents, disconnectSocket } from '../lib/socket.js';
 import { Icon } from '../lib/icons.jsx';
@@ -13,6 +14,18 @@ const PHASES = ['Briefing', 'Prototype', 'Refine', 'Production', 'Live'];
 
 let _mid = 0;
 const mkMsg = (role, content) => ({ id: `${role}-${Date.now()}-${_mid++}`, role, content });
+
+// V2's /chat reply hardcodes "preview will appear in ~15 seconds"; real instant
+// builds take ~1-2 min. Rewrite any such estimate so the studio isn't misleading.
+function fixEstimate(text) {
+  if (!text) return text;
+  return text
+    .replace(/preview will appear in ~?\s*\d+\s*seconds?\.{0,3}/gi, 'your preview will appear shortly (usually about a minute).')
+    .replace(/in ~?\s*15\s*seconds?/gi, 'in about a minute')
+    .replace(/~?\s*15\s*seconds?/gi, 'about a minute');
+}
+
+const SKIP_RE = /^\s*(skip|build it|just build|build now|no more questions|that'?s enough)\s*$/i;
 
 export default function StudioShell({ projectId, onBack }) {
   const [project, setProject] = useState(null);
@@ -32,6 +45,8 @@ export default function StudioShell({ projectId, onBack }) {
   const [activeFile, setActiveFile] = useState(null);
   const [fileBody, setFileBody] = useState('');
   const [building, setBuilding] = useState(false);
+  const [mode, setMode] = useState('review'); // 'discovery' = onboarding Q&A, 'review' = build/refine
+  const [disco, setDisco] = useState(null); // { n, total }
   const kicked = useRef(false);
 
   const url = useMemo(() => (previewReady ? previewUrl(projectId, version) : ''), [projectId, version, previewReady]);
@@ -86,7 +101,7 @@ export default function StudioShell({ projectId, onBack }) {
       else if (hist.length === 0 && !kicked.current) {
         // chat-first kickoff: turn the idea into a first prototype
         kicked.current = true;
-        const idea = (project?.description) || '';
+        const idea = (p?.description) || project?.description || '';
         kickoff(idea);
       }
     })();
@@ -104,7 +119,7 @@ export default function StudioShell({ projectId, onBack }) {
       'build:instant_failed': (e) => { setBuilding(false); setWorking(false); pushEvent('Build failed', e?.message); },
       'project:prototype_ready': () => { pushEvent('Prototype ready'); markReady(); },
       'project:prototype_updated': () => { pushEvent('Prototype updated'); setWorking(false); setPreviewReady(true); setVersion(Date.now()); },
-      'project:chat_reply': (e) => { if (e?.reply) setMessages((m) => [...m, mkMsg('assistant', e.reply)]); setWorking(false); },
+      'project:chat_reply': (e) => { if (e?.reply) setMessages((m) => [...m, mkMsg('assistant', fixEstimate(e.reply))]); setWorking(false); },
       'project:task_updated': (e) => { pushEvent(e?.agent || e?.name || 'Task', e?.status); setStatus((s) => s); refreshStatus(); },
       'project:build_log': (e) => { if (e?.type !== 'stream' && e?.text) pushEvent(e?.agentName || 'Build', e.text); },
       'project:phase_complete': (e) => pushEvent('Phase complete', e?.phase),
@@ -143,34 +158,68 @@ export default function StudioShell({ projectId, onBack }) {
     return () => clearInterval(iv);
   }, [projectId, previewReady, markReady, refreshStatus, refreshDeploy]);
 
-  // chat-first kickoff — uses the chat brain to generate the first prototype
-  const kickoff = useCallback(async (idea) => {
+  // Trigger the instant prototype build once the brief is understood.
+  const triggerInstant = useCallback(async () => {
+    setMode('review');
+    setDisco(null);
     setBuilding(true);
-    setWorking('Generating your prototype…');
-    setMessages([mkMsg('user', idea), mkMsg('system', 'Fatline is building your first prototype…')]);
+    setWorking('Building your prototype — this usually takes 1–2 minutes…');
+    setMessages((m) => [...m, mkMsg('assistant', "Perfect — I've got the brief. Building your prototype now. This usually takes about a minute; it'll appear in the preview the moment it's ready.")]);
     try {
-      const data = await sendChat(projectId, idea || 'Build the first version of this app.');
-      if (data?.reply) setMessages((m) => [...m, mkMsg('assistant', data.reply)]);
+      await buildInstant(projectId, {});
     } catch (e) {
-      setMessages((m) => [...m, mkMsg('system', e.message || 'Failed to start build')]);
-      setWorking(false);
+      // instant endpoint may gate on discovery; fall back to the chat-build path
+      try { await sendChat(projectId, 'build the first version'); }
+      catch (e2) { setMessages((m) => [...m, mkMsg('system', e2.message || 'Failed to start build')]); setBuilding(false); setWorking(false); }
     }
   }, [projectId]);
+
+  // Onboarding kickoff: ask the discovery questions first, THEN build.
+  const kickoff = useCallback(async (idea) => {
+    setMode('discovery');
+    setMessages([
+      mkMsg('user', idea),
+      mkMsg('assistant', "Love it. Let me ask a few quick questions so the build nails your brief — you can type \"skip\" any time to build right away."),
+    ]);
+    setWorking('Thinking…');
+    try {
+      const data = await discoveryChat(projectId, idea);
+      if (data?.isComplete || data?.done) { await triggerInstant(); return; }
+      setDisco({ n: data?.questionNumber || 1, total: data?.totalEstimate || 5 });
+      setMessages((m) => [...m, mkMsg('assistant', data?.question || 'Tell me a bit more about what you want to build.')]);
+      setWorking(false);
+    } catch (e) {
+      // discovery unavailable/slow — don't block the user, just build
+      setMessages((m) => [...m, mkMsg('system', "Couldn't load the questions — building your prototype directly.")]);
+      await triggerInstant();
+    }
+  }, [projectId, triggerInstant]);
 
   const onSend = useCallback(async (text) => {
     setMessages((m) => [...m, mkMsg('user', text)]);
     setSending(true);
     try {
-      const data = await sendChat(projectId, text);
-      if (data?.reply || data?.response) setMessages((m) => [...m, mkMsg('assistant', data.reply || data.response)]);
-      if (data?.regenerating) setWorking('Updating the preview…');
-      else if (data?.prototypeUpdated) reloadPreview();
+      if (mode === 'discovery') {
+        if (SKIP_RE.test(text)) { setSending(false); await triggerInstant(); return; }
+        setWorking('Thinking…');
+        const data = await discoveryChat(projectId, text);
+        if (data?.isComplete || data?.done) { setSending(false); await triggerInstant(); return; }
+        setDisco({ n: data?.questionNumber || 0, total: data?.totalEstimate || 5 });
+        setMessages((m) => [...m, mkMsg('assistant', data?.question || 'Got it — anything else to add?')]);
+        setWorking(false);
+      } else {
+        const data = await sendChat(projectId, text);
+        const reply = fixEstimate(data?.reply || data?.response);
+        if (reply) setMessages((m) => [...m, mkMsg('assistant', reply)]);
+        if (data?.regenerating) setWorking('Updating the preview…');
+        else if (data?.prototypeUpdated) reloadPreview();
+      }
     } catch (e) {
       setMessages((m) => [...m, mkMsg('system', e.message || 'Failed to send')]);
     } finally {
       setSending(false);
     }
-  }, [projectId, reloadPreview]);
+  }, [projectId, mode, reloadPreview, triggerInstant]);
 
   const onBuildProduction = useCallback(async () => {
     setBusy(true);
@@ -229,7 +278,7 @@ export default function StudioShell({ projectId, onBack }) {
       </div>
 
       <div className="panels">
-        <ChatPanel messages={messages} sending={sending} working={working} onSend={onSend} />
+        <ChatPanel messages={messages} sending={sending} working={working} onSend={onSend} mode={mode} disco={disco} />
         <PreviewPanel
           url={url} building={building} ready={previewReady}
           device={device} setDevice={setDevice} onReload={reloadPreview}

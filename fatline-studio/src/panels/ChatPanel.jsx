@@ -8,7 +8,7 @@ const QUICK = [
   'Add customer testimonials',
 ];
 
-export default function ChatPanel({ messages, sending, working, onSend }) {
+export default function ChatPanel({ messages, sending, working, onSend, mode = 'review', disco = null }) {
   const [text, setText] = useState('');
   const endRef = useRef(null);
 
@@ -27,8 +27,8 @@ export default function ChatPanel({ messages, sending, working, onSend }) {
   return (
     <div className="panel chat">
       <div className="panel-head">
-        <div className="t"><Icon name="sparkles" size={15} style={{ verticalAlign: -2, marginRight: 6 }} />Fatline Chat</div>
-        <span className="pill neutral">Opus build agent</span>
+        <div className="t"><Icon name="sparkles" size={15} style={{ verticalAlign: -2, marginRight: 6 }} />{mode === 'discovery' ? 'Onboarding' : 'Fatline Chat'}</div>
+        <span className="pill neutral">{mode === 'discovery' ? (disco ? `Question ${disco.n} of ~${disco.total}` : 'A few quick questions') : 'Opus build agent'}</span>
       </div>
 
       <div className="chat-log">
@@ -56,7 +56,7 @@ export default function ChatPanel({ messages, sending, working, onSend }) {
         <div ref={endRef} />
       </div>
 
-      {messages.length <= 2 && (
+      {mode !== 'discovery' && messages.length <= 2 && (
         <div className="quick-prompts">
           {QUICK.map((q) => <button key={q} className="chip" onClick={() => setText(q)}>{q}</button>)}
         </div>
@@ -66,7 +66,7 @@ export default function ChatPanel({ messages, sending, working, onSend }) {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Tell the builder what to change…"
+          placeholder={mode === 'discovery' ? "Type your answer… (or 'skip' to build now)" : 'Tell the builder what to change…'}
           rows={2}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) submit(e); }}
         />
