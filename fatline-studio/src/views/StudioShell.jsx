@@ -101,8 +101,7 @@ export default function StudioShell({ projectId, onBack }) {
       else if (hist.length === 0 && !kicked.current) {
         // chat-first kickoff: turn the idea into a first prototype
         kicked.current = true;
-        const idea = (p?.description) || project?.description || '';
-        kickoff(idea);
+        kickoff();
       }
     })();
     return () => { alive = false; };
@@ -174,26 +173,17 @@ export default function StudioShell({ projectId, onBack }) {
     }
   }, [projectId]);
 
-  // Onboarding kickoff: ask the discovery questions first, THEN build.
-  const kickoff = useCallback(async (idea) => {
-    setMode('discovery');
-    setMessages([
-      mkMsg('user', idea),
-      mkMsg('assistant', "Love it. Let me ask a few quick questions so the build nails your brief — you can type \"skip\" any time to build right away."),
-    ]);
-    setWorking('Thinking…');
-    try {
-      const data = await discoveryChat(projectId, idea);
-      if (data?.isComplete || data?.done) { await triggerInstant(); return; }
-      setDisco({ n: data?.questionNumber || 1, total: data?.totalEstimate || 5 });
-      setMessages((m) => [...m, mkMsg('assistant', data?.question || 'Tell me a bit more about what you want to build.')]);
-      setWorking(false);
-    } catch (e) {
-      // discovery unavailable/slow — don't block the user, just build
-      setMessages((m) => [...m, mkMsg('system', "Couldn't load the questions — building your prototype directly.")]);
-      await triggerInstant();
-    }
-  }, [projectId, triggerInstant]);
+  // The dashboard runs onboarding (discovery Q&A) and fires the instant build
+  // before opening the studio, so by the time we mount a build is already in
+  // flight. Reflect that (don't re-ask questions); safety-trigger in case the
+  // studio was opened directly on a project with no build yet.
+  const kickoff = useCallback(async () => {
+    setMode('review');
+    setBuilding(true);
+    setWorking('Building your prototype — this usually takes 1–2 minutes…');
+    setMessages([mkMsg('assistant', "Building your prototype now — it'll appear in the preview the moment it's ready. This usually takes about a minute.")]);
+    try { await buildInstant(projectId, {}); } catch { /* already running / discovery-gated — the poll + socket will surface it */ }
+  }, [projectId]);
 
   const onSend = useCallback(async (text) => {
     setMessages((m) => [...m, mkMsg('user', text)]);
