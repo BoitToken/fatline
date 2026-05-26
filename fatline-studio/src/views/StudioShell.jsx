@@ -27,6 +27,23 @@ function fixEstimate(text) {
 
 const SKIP_RE = /^\s*(skip|build it|just build|build now|no more questions|that'?s enough)\s*$/i;
 
+// Derive a DNS-safe single-label subdomain for the previewed URL. Mirrors the
+// backend's generateSubdomainSlug so the placeholder matches the real deploy.
+// The project name is often the raw prompt (e.g. "redesign my site https://x.com/"),
+// so we must strip protocols, slashes, dots — anything that isn't [a-z0-9] — not
+// just whitespace.
+function toSubdomainLabel(name) {
+  const slug = String(name || '')
+    .toLowerCase()
+    .replace(/[^\x00-\x7f]/g, '-')   // non-ASCII → separator
+    .replace(/[^a-z0-9]+/g, '-')     // strips https://, /, ., spaces, etc.
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 30)
+    .replace(/-+$/g, '');
+  return slug || 'app';
+}
+
 export default function StudioShell({ projectId, onBack }) {
   const [project, setProject] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -291,7 +308,7 @@ export default function StudioShell({ projectId, onBack }) {
           url={url} building={building} ready={previewReady}
           device={device} setDevice={setDevice} onReload={reloadPreview}
           pages={pages} currentPage={currentPage} onSelectPage={setCurrentPage}
-          displayUrl={`${project?.name ? project.name.toLowerCase().replace(/\s+/g, '-') : 'app'}.produsa.app`}
+          displayUrl={`${project?.subdomain || project?.metadata?.subdomain || toSubdomainLabel(project?.name)}.produsa.app`}
         />
         <BuildPanel
           project={project} status={status} events={events} deployUrl={deployUrl} busy={busy} phase={stage}
