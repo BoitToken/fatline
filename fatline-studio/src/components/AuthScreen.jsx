@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { login, register, googleLogin, GOOGLE_CLIENT_ID } from '../lib/api.js';
+import brandMark from '../assets/produsa-mark.png';
 
 export default function AuthScreen({ onAuthed }) {
   const [mode, setMode] = useState('login'); // login | signup
@@ -65,9 +66,9 @@ export default function AuthScreen({ onAuthed }) {
     <div className="auth-wrap">
       <div className="auth-card">
         <div className="auth-logo">
-          <div className="mark">F</div>
+          <div className="mark logo-mark"><img src={brandMark} alt="Produsa" /></div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 17 }}>Fatline Studio</div>
+            <div style={{ fontWeight: 700, fontSize: 17 }}>Produsa Studio</div>
             <div className="muted" style={{ fontSize: 12 }}>Build a real app from a sentence</div>
           </div>
         </div>

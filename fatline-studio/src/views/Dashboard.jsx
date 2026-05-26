@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { listProjects, createProject, discoveryChat, buildInstant, uploadLogo, getCredits, getUser, clearAuth } from '../lib/api.js';
 import { Icon } from '../lib/icons.jsx';
+import brandMark from '../assets/produsa-mark.png';
 
 // "What kind of project?" pills — mirrors produsa.app/dashboard (all of them).
 const TYPES = [
@@ -171,8 +172,8 @@ export default function Dashboard({ onOpenStudio, onLogout }) {
     <div className="dash fl-dash">
       <div className="dash-top">
         <div className="auth-logo" style={{ margin: 0 }}>
-          <div className="mark" style={{ width: 36, height: 36, borderRadius: 11, background: 'linear-gradient(135deg,var(--brand),var(--brand-2))', display: 'grid', placeItems: 'center', fontWeight: 800, fontFamily: 'var(--font-display)' }}>F</div>
-          <div style={{ fontWeight: 700 }}>Fatline</div>
+          <div className="mark logo-mark" style={{ width: 36, height: 36, borderRadius: 11 }}><img src={brandMark} alt="Produsa" /></div>
+          <div style={{ fontWeight: 700 }}>Produsa</div>
         </div>
         <div className="dash-actions">
           {credits != null && <span className="pill brand"><span className="dot" /> {Number(credits).toLocaleString()} tokens</span>}

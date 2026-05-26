@@ -86,6 +86,8 @@ label > span { display: block; font-size: 12px; color: var(--muted); margin-bott
 .auth-card { width: 100%; max-width: 410px; background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 32px; box-shadow: var(--shadow); }
 .auth-logo { display: flex; align-items: center; gap: 11px; margin-bottom: 22px; }
 .auth-logo .mark { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, var(--brand), var(--brand-2)); display: grid; place-items: center; font-weight: 800; font-family: var(--font-display); box-shadow: 0 8px 22px rgba(var(--brand-rgb),0.45); }
+.auth-logo .mark.logo-mark { background: #0e0d18; padding: 5px; }
+.auth-logo .mark.logo-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .auth-card h1 { font-size: 24px; margin-bottom: 4px; }
 .auth-form { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
 .auth-switch { text-align: center; font-size: 13px; color: var(--muted); margin-top: 16px; }

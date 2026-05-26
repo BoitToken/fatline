@@ -55,7 +55,7 @@ export default function PreviewPanel({
               <>
                 <div className="spinner" style={{ margin: '0 auto 14px' }} />
                 <div className="empty-title">Building your prototype…</div>
-                <p className="muted">The fatbots are generating your pages. This usually takes under a minute.</p>
+                <p className="muted">The probots are generating your pages. This usually takes under a minute.</p>
               </>
             ) : (
               <>

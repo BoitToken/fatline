@@ -27,7 +27,7 @@ export default function ChatPanel({ messages, sending, working, onSend, mode = '
   return (
     <div className="panel chat">
       <div className="panel-head">
-        <div className="t"><Icon name="sparkles" size={15} style={{ verticalAlign: -2, marginRight: 6 }} />{mode === 'discovery' ? 'Onboarding' : 'Fatline Chat'}</div>
+        <div className="t"><Icon name="sparkles" size={15} style={{ verticalAlign: -2, marginRight: 6 }} />{mode === 'discovery' ? 'Onboarding' : 'Produsa Chat'}</div>
         <span className="pill neutral">{mode === 'discovery' ? (disco ? `Question ${disco.n} of ~${disco.total}` : 'A few quick questions') : 'Opus build agent'}</span>
       </div>
 
@@ -40,13 +40,13 @@ export default function ChatPanel({ messages, sending, working, onSend, mode = '
         )}
         {messages.map((m) => (
           <div key={m.id} className={`msg ${m.role}`}>
-            <div className="who">{m.role === 'user' ? 'You' : m.role === 'system' ? 'Build' : 'Fatline'}</div>
+            <div className="who">{m.role === 'user' ? 'You' : m.role === 'system' ? 'Build' : 'Produsa'}</div>
             <div className="body">{m.content}</div>
           </div>
         ))}
         {working && (
           <div className="msg assistant">
-            <div className="who">Fatline</div>
+            <div className="who">Produsa</div>
             <div className="body working">
               <span className="typing-dots"><span></span><span></span><span></span></span>
               <span className="muted">{typeof working === 'string' ? working : 'Working on it…'}</span>
