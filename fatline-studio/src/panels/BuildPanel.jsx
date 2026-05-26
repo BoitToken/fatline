@@ -8,6 +8,36 @@ const TABS = [
   ['deploy', 'Deploy', 'rocket'],
 ];
 
+// The V2.5 instant pipeline emits granular `build:instant_step` events keyed by a
+// stable `step` field (research / features / architecture / ux / building / audit /
+// saving / retry / …). Collapse those ~15 raw keys into an ordered, human-readable
+// stage model so the Agents tab shows real progress during an *instant* build — not
+// just during a production build (which is the only thing it used to surface).
+const INSTANT_STAGES = [
+  ['research', 'Research & brand', 'globe'],
+  ['features', 'Features & copy', 'zap'],
+  ['architecture', 'Architecture', 'layers'],
+  ['ux', 'Design & visuals', 'sparkles'],
+  ['building', 'Building pages', 'code'],
+  ['audit', 'Quality audit', 'check'],
+  ['saving', 'Finalizing', 'rocket'],
+];
+const STAGE_ORDER = INSTANT_STAGES.map((s) => s[0]);
+
+// Map a raw instant-pipeline step key onto a canonical stage. Exported so
+// StudioShell can keep the live `stageKey` in lockstep with these stages.
+export function stageKeyForStep(step) {
+  if (!step) return null;
+  if (/^architecture|^integrations/.test(step)) return 'architecture';
+  if (/^audit|^self_verify|^visual_audit|^validating/.test(step)) return 'audit';
+  if (/^saving|^retry|^fixing|^patching|^degraded/.test(step)) return 'saving';
+  if (/^research/.test(step)) return 'research';
+  if (/^features/.test(step)) return 'features';
+  if (/^ux/.test(step)) return 'ux';
+  if (/^building/.test(step)) return 'building';
+  return null;
+}
+
 function fmtTime(ts) {
   if (!ts) return '';
   const d = new Date(ts);
@@ -18,13 +48,30 @@ export default function BuildPanel({
   project, status, events, deployUrl, busy, phase,
   files, activeFile, fileBody, onSelectFile,
   onBuildProduction, onDeploy, onReloadFiles,
+  building, previewReady, pct, stageKey,
 }) {
   const [tab, setTab] = useState('activity');
   const summary = status?.summary || {};
   const total = summary.total || summary.totalTasks || 0;
   const done = summary.done || summary.completedTasks || 0;
-  const pct = total ? Math.round((done / total) * 100) : (project?.progress || 0);
+  const prodPct = total ? Math.round((done / total) * 100) : (project?.progress || 0);
   const tasks = status?.tasks || [];
+
+  // Instant-build stage state, derived from the live stageKey + pct.
+  const currentIdx = stageKey ? STAGE_ORDER.indexOf(stageKey) : -1;
+  const settled = previewReady && !building;            // build finished / prototype already exists
+  const currentStageLabel = currentIdx >= 0 ? INSTANT_STAGES[currentIdx][1] : null;
+  const displayPct = building ? Math.max(pct ?? 0, prodPct) : (previewReady ? 100 : prodPct);
+  const showBar = building || total > 0 || previewReady;
+  const showInstantStages = tasks.length === 0 && (building || currentIdx >= 0 || settled);
+
+  const stageStatus = (i) => {
+    if (settled) return 'done';
+    if (currentIdx < 0) return 'pending';
+    if (i < currentIdx) return 'done';
+    if (i === currentIdx) return building ? 'active' : 'done';
+    return 'pending';
+  };
 
   return (
     <div className="panel build">
@@ -40,12 +87,15 @@ export default function BuildPanel({
         {tab === 'activity' && (
           <>
             <div className="stat-grid">
-              <div className="statcard"><div className="v">{phase || project?.stage || 'draft'}</div><div className="l">Stage</div></div>
-              <div className="statcard"><div className="v">{pct}%</div><div className="l">Progress</div></div>
+              <div className="statcard">
+                <div className="v">{building && currentStageLabel ? currentStageLabel : (phase || project?.stage || 'draft')}</div>
+                <div className="l">{building ? 'Building' : 'Stage'}</div>
+              </div>
+              <div className="statcard"><div className="v">{displayPct}%</div><div className="l">Progress</div></div>
             </div>
-            {total > 0 && <div className="progress"><div style={{ width: `${pct}%` }} /></div>}
+            {showBar && <div className="progress"><div style={{ width: `${displayPct}%` }} /></div>}
             {events.length === 0 ? (
-              <div className="empty-state">Build events will stream here.</div>
+              <div className="empty-state">{building ? 'Starting the build…' : 'Build activity will stream here.'}</div>
             ) : (
               events.slice().reverse().map((e, i) => (
                 <div key={i} className="activity-item">
@@ -59,9 +109,7 @@ export default function BuildPanel({
 
         {tab === 'agents' && (
           <>
-            {tasks.length === 0 ? (
-              <div className="empty-state">Agent activity appears during a production build.</div>
-            ) : (
+            {tasks.length > 0 ? (
               tasks.map((t, i) => (
                 <div key={i} className="agent-row">
                   <Icon name={t.status === 'done' ? 'check' : t.status === 'failed' ? 'x' : 'zap'} size={15} />
@@ -72,6 +120,22 @@ export default function BuildPanel({
                   <span className={`pill badge-state ${t.status === 'done' ? 'mint' : t.status === 'failed' ? 'danger' : 'amber'}`}>{t.status}</span>
                 </div>
               ))
+            ) : showInstantStages ? (
+              INSTANT_STAGES.map(([key, label, ic], i) => {
+                const st = stageStatus(i);
+                return (
+                  <div key={key} className="agent-row">
+                    <Icon name={st === 'done' ? 'check' : st === 'active' ? 'zap' : ic} size={15} />
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{label}</div>
+                      <div className="muted" style={{ fontSize: 12 }}>{st === 'active' ? 'Working…' : st === 'done' ? 'Done' : 'Queued'}</div>
+                    </div>
+                    <span className={`pill badge-state ${st === 'done' ? 'mint' : st === 'active' ? 'amber' : 'neutral'}`}>{st}</span>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="empty-state">Agent activity appears here while your prototype is being built.</div>
             )}
           </>
         )}
@@ -83,7 +147,7 @@ export default function BuildPanel({
               <button className="button ghost sm" onClick={onReloadFiles}><Icon name="refresh" size={13} /></button>
             </div>
             {!files?.length ? (
-              <div className="empty-state">Files appear once the prototype is generated.</div>
+              <div className="empty-state">{building ? 'Files appear as the prototype is generated.' : 'Files appear once the prototype is generated.'}</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
                 <div className="code-tree">

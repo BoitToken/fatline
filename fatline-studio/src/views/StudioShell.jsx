@@ -8,7 +8,7 @@ import { joinProject, leaveProject, onEvents, disconnectSocket } from '../lib/so
 import { Icon } from '../lib/icons.jsx';
 import ChatPanel from '../panels/ChatPanel.jsx';
 import PreviewPanel from '../panels/PreviewPanel.jsx';
-import BuildPanel from '../panels/BuildPanel.jsx';
+import BuildPanel, { stageKeyForStep } from '../panels/BuildPanel.jsx';
 
 const PHASES = ['Briefing', 'Prototype', 'Refine', 'Production', 'Live'];
 
@@ -45,6 +45,8 @@ export default function StudioShell({ projectId, onBack }) {
   const [activeFile, setActiveFile] = useState(null);
   const [fileBody, setFileBody] = useState('');
   const [building, setBuilding] = useState(false);
+  const [pct, setPct] = useState(null);       // live instant-build percent (0-100)
+  const [stageKey, setStageKey] = useState(null); // current canonical instant stage
   const [mode, setMode] = useState('review'); // 'discovery' = onboarding Q&A, 'review' = build/refine
   const [disco, setDisco] = useState(null); // { n, total }
   const kicked = useRef(false);
@@ -69,6 +71,7 @@ export default function StudioShell({ projectId, onBack }) {
     setPreviewReady(true);
     setBuilding(false);
     setWorking(false);
+    setPct(100);
     setVersion(Date.now());
     loadManifest();
   }, [loadManifest]);
@@ -112,8 +115,13 @@ export default function StudioShell({ projectId, onBack }) {
   useEffect(() => {
     joinProject(projectId);
     const off = onEvents({
-      'build:instant_started': () => { setBuilding(true); setWorking('Generating your prototype…'); pushEvent('Build started'); },
-      'build:instant_step': (e) => pushEvent('Step', e?.label || e?.step),
+      'build:instant_started': () => { setBuilding(true); setWorking('Generating your prototype…'); setPct(0); setStageKey(null); pushEvent('Build started'); },
+      'build:instant_step': (e) => {
+        pushEvent(e?.label || 'Step', undefined);
+        if (typeof e?.pct === 'number') setPct(e.pct);
+        const sk = stageKeyForStep(e?.step);
+        if (sk) setStageKey(sk);
+      },
       'build:instant_ready': () => { pushEvent('Prototype ready'); markReady(); },
       'build:instant_failed': (e) => { setBuilding(false); setWorking(false); pushEvent('Build failed', e?.message); },
       'project:prototype_ready': () => { pushEvent('Prototype ready'); markReady(); },
@@ -162,6 +170,8 @@ export default function StudioShell({ projectId, onBack }) {
     setMode('review');
     setDisco(null);
     setBuilding(true);
+    setPct(0);
+    setStageKey(null);
     setWorking('Building your prototype — this usually takes 1–2 minutes…');
     setMessages((m) => [...m, mkMsg('assistant', "Perfect — I've got the brief. Building your prototype now. This usually takes about a minute; it'll appear in the preview the moment it's ready.")]);
     try {
@@ -180,6 +190,8 @@ export default function StudioShell({ projectId, onBack }) {
   const kickoff = useCallback(async () => {
     setMode('review');
     setBuilding(true);
+    setPct(0);
+    setStageKey(null);
     setWorking('Building your prototype — this usually takes 1–2 minutes…');
     setMessages([mkMsg('assistant', "Building your prototype now — it'll appear in the preview the moment it's ready. This usually takes about a minute.")]);
     try { await buildInstant(projectId, {}); } catch { /* already running / discovery-gated — the poll + socket will surface it */ }
@@ -231,6 +243,12 @@ export default function StudioShell({ projectId, onBack }) {
     setFiles(list.map((x) => (typeof x === 'string' ? x : x.path || x.name)).filter(Boolean));
   }, [projectId]);
 
+  // Auto-load the source file list whenever a prototype exists or is regenerated,
+  // so the Code tab is populated without the user having to hit refresh.
+  useEffect(() => {
+    if (previewReady) onReloadFiles().catch(() => {});
+  }, [previewReady, version, onReloadFiles]);
+
   const onSelectFile = useCallback(async (f) => {
     setActiveFile(f);
     setFileBody('// loading…');
@@ -279,6 +297,7 @@ export default function StudioShell({ projectId, onBack }) {
           project={project} status={status} events={events} deployUrl={deployUrl} busy={busy} phase={stage}
           files={files} activeFile={activeFile} fileBody={fileBody} onSelectFile={onSelectFile}
           onBuildProduction={onBuildProduction} onDeploy={onDeploy} onReloadFiles={onReloadFiles}
+          building={building} previewReady={previewReady} pct={pct} stageKey={stageKey}
         />
       </div>
     </div>
