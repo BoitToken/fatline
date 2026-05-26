@@ -137,7 +137,12 @@ export async function getProject(projectId) {
 }
 
 // V2 requires { name, stage }. We seed an instant-pipeline project.
-export async function createProject({ name, description, type = 'webapp' }) {
+// brandUrl (optional) → metadata.brand_url, so a "rebuild this existing site" intent
+// is persisted on the project. The backend honours it once Part B2 ships (today it's
+// stored but the instant pipeline still discovers the brand by search).
+export async function createProject({ name, description, type = 'webapp', brandUrl } = {}) {
+  const metadata = { original_idea: description, app_type: type, source: 'fatline-studio' };
+  if (brandUrl) metadata.brand_url = brandUrl;
   const data = await request('/api/projects', {
     method: 'POST',
     body: {
@@ -147,10 +152,18 @@ export async function createProject({ name, description, type = 'webapp' }) {
       stage: 'research',
       description,
       type,
-      metadata: { original_idea: description, app_type: type, source: 'fatline-studio' },
+      metadata,
     },
   });
   return data?.project || data;
+}
+
+// Multipart logo upload → backend stores it in metadata.logo_url and returns { url }.
+// Field name must be "logo" (multer .single('logo'), ≤2MB) — see backend projects-logo.js.
+export async function uploadLogo(projectId, file) {
+  const form = new FormData();
+  form.append('logo', file);
+  return request(`/api/projects/${projectId}/upload-logo`, { method: 'POST', body: form, isForm: true });
 }
 
 /* ------------------------------- Discovery -------------------------------- */

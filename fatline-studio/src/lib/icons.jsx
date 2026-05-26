@@ -19,6 +19,9 @@ const PATHS = {
   check: 'M20 6 9 17l-5-5',
   zap: 'M13 2 3 14h9l-1 8 10-12h-9l1-8z',
   globe: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z',
+  'chevron-right': 'M9 18l6-6-6-6',
+  'chevron-down': 'M6 9l6 6 6-6',
+  upload: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12',
 };
 
 export function Icon({ name, size = 18, className = '', style }) {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { listProjects, createProject, discoveryChat, buildInstant, getCredits, getUser, clearAuth } from '../lib/api.js';
+import { listProjects, createProject, discoveryChat, buildInstant, uploadLogo, getCredits, getUser, clearAuth } from '../lib/api.js';
 import { Icon } from '../lib/icons.jsx';
 
 // "What kind of project?" pills — mirrors produsa.app/dashboard (all of them).
@@ -34,6 +34,22 @@ function timeAgo(ts) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+const MAX_LOGO_BYTES = 2 * 1024 * 1024; // matches backend multer 2MB limit
+
+// Light client-side normalisation so the backend (Part B2) gets a clean, scrapeable URL.
+// Returns '' if it doesn't look like a host at all.
+function normalizeBrandUrl(raw) {
+  const v = (raw || '').trim();
+  if (!v) return '';
+  const withScheme = /^https?:\/\//i.test(v) ? v : `https://${v}`;
+  try {
+    const u = new URL(withScheme);
+    return u.hostname.includes('.') ? u.href.replace(/\/$/, '') : '';
+  } catch {
+    return '';
+  }
+}
+
 export default function Dashboard({ onOpenStudio, onLogout }) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +58,31 @@ export default function Dashboard({ onOpenStudio, onLogout }) {
   const [type, setType] = useState('webapp');
   const [credits, setCredits] = useState(null);
   const [tab, setTab] = useState('recent');
+
+  // ── Hybrid brand intake (rebuilds only) ──────────────────────────────────
+  // Greenfield ideas skip this entirely; if the user is rebuilding an existing
+  // brand they expand the panel and give us the URL + logo to ground the redesign.
+  const [showBrand, setShowBrand] = useState(false);
+  const [brandUrl, setBrandUrl] = useState('');
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState('');
+  const fileRef = useRef(null);
+
+  const onPickLogo = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith('image/')) { setError('Logo must be an image file.'); return; }
+    if (f.size > MAX_LOGO_BYTES) { setError('Logo is over 2MB — please pick a smaller file.'); return; }
+    setError('');
+    setLogoFile(f);
+    setLogoPreview(URL.createObjectURL(f));
+  };
+  const clearLogo = () => {
+    if (logoPreview) URL.revokeObjectURL(logoPreview);
+    setLogoFile(null);
+    setLogoPreview('');
+    if (fileRef.current) fileRef.current.value = '';
+  };
 
   // Same-tab onboarding chat state.
   const [chat, setChat] = useState(null); // null = idle | { projectId, messages, thinking, done }
@@ -70,10 +111,17 @@ export default function Dashboard({ onOpenStudio, onLogout }) {
     if (!idea.trim() || chat) return;
     setError('');
     const seed = idea.trim();
+    const cleanBrandUrl = normalizeBrandUrl(brandUrl);
     setChat({ projectId: null, messages: [{ role: 'user', text: seed }], thinking: true, done: false });
     try {
-      const p = await createProject({ name: seed.slice(0, 60), description: seed, type });
+      const p = await createProject({ name: seed.slice(0, 60), description: seed, type, brandUrl: cleanBrandUrl });
       if (!p?.id) throw new Error('Create returned no id');
+      // Attach the real logo first so it's on the project before generation. Non-fatal:
+      // a failed upload must not block the build.
+      if (logoFile) {
+        try { await uploadLogo(p.id, logoFile); }
+        catch (e) { console.warn('[brand] logo upload failed:', e?.message); }
+      }
       // Kick off the backend's conversational discovery with the idea itself.
       const r = await discoveryChat(p.id, seed);
       applyDiscovery(p.id, r);
@@ -139,19 +187,65 @@ export default function Dashboard({ onOpenStudio, onLogout }) {
         {/* Prompt card → becomes the onboarding chat in the same tab */}
         <div className="fl-prompt-card">
           {!chat ? (
-            <div className="fl-prompt-row">
-              <textarea
-                className="fl-prompt"
-                value={idea}
-                onChange={(e) => setIdea(e.target.value)}
-                placeholder="Describe what you want to build…"
-                rows={2}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); start(); } }}
-              />
-              <button className="fl-send" onClick={start} disabled={!idea.trim()} aria-label="Send">
-                Send <Icon name="send" size={15} />
-              </button>
-            </div>
+            <>
+              <div className="fl-prompt-row">
+                <textarea
+                  className="fl-prompt"
+                  value={idea}
+                  onChange={(e) => setIdea(e.target.value)}
+                  placeholder="Describe what you want to build…"
+                  rows={2}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); start(); } }}
+                />
+                <button className="fl-send" onClick={start} disabled={!idea.trim()} aria-label="Send">
+                  Send <Icon name="send" size={15} />
+                </button>
+              </div>
+
+              {/* Hybrid brand intake — optional, only for rebuilds */}
+              <div className="fl-brand">
+                <button
+                  type="button"
+                  className={`fl-brand-toggle ${showBrand ? 'open' : ''}`}
+                  onClick={() => setShowBrand((s) => !s)}
+                  aria-expanded={showBrand}
+                >
+                  <Icon name={showBrand ? 'chevron-down' : 'chevron-right'} size={14} />
+                  Rebuilding an existing brand or website? <span className="fl-brand-opt">optional</span>
+                </button>
+                {showBrand && (
+                  <div className="fl-brand-body">
+                    <p className="fl-brand-hint">Give us the live site and logo — we'll pull the real colours, copy and identity and redesign from them, instead of starting blank.</p>
+                    <label className="fl-brand-field">
+                      <span>Existing website URL</span>
+                      <input
+                        type="url"
+                        className="fl-brand-input"
+                        value={brandUrl}
+                        onChange={(e) => setBrandUrl(e.target.value)}
+                        placeholder="aluplex.com"
+                        spellCheck={false}
+                      />
+                    </label>
+                    <div className="fl-brand-field">
+                      <span>Logo</span>
+                      <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickLogo} />
+                      {!logoPreview ? (
+                        <button type="button" className="button ghost sm" onClick={() => fileRef.current?.click()}>
+                          <Icon name="upload" size={14} /> Upload logo
+                        </button>
+                      ) : (
+                        <div className="fl-brand-logo">
+                          <img src={logoPreview} alt="logo preview" />
+                          <span className="fl-brand-logo-name">{logoFile?.name}</span>
+                          <button type="button" className="button ghost sm" onClick={clearLogo}>Remove</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <div className="fl-chat-wrap">
               <div className="fl-chat" ref={chatRef}>
