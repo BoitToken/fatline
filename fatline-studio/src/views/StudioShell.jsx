@@ -13,7 +13,7 @@ import BuildPanel, { stageKeyForStep } from '../panels/BuildPanel.jsx';
 const PHASES = ['Briefing', 'Prototype', 'Refine', 'Production', 'Live'];
 
 let _mid = 0;
-const mkMsg = (role, content) => ({ id: `${role}-${Date.now()}-${_mid++}`, role, content });
+const mkMsg = (role, content, extra = null) => ({ id: `${role}-${Date.now()}-${_mid++}`, role, content, ...(extra || {}) });
 
 // V2's /chat reply hardcodes "preview will appear in ~15 seconds"; real instant
 // builds take ~1-2 min. Rewrite any such estimate so the studio isn't misleading.
@@ -224,7 +224,18 @@ export default function StudioShell({ projectId, onBack }) {
         const data = await discoveryChat(projectId, text);
         if (data?.isComplete || data?.done) { setSending(false); await triggerInstant(); return; }
         setDisco({ n: data?.questionNumber || 0, total: data?.totalEstimate || 5 });
-        setMessages((m) => [...m, mkMsg('assistant', data?.question || 'Got it — anything else to add?')]);
+        // CEO mandate 2026-05-28 (Item 3): InstaScout returns `plan` + `currentPlanId`
+        // with { id, question, helper, options } per question. Attach helper +
+        // options + numbering to the message so ChatPanel can render multi-choice cards.
+        let helper = ''; let options = []; let n = data?.questionNumber || null; let total = data?.totalEstimate || null;
+        if (Array.isArray(data?.plan) && data?.currentPlanId) {
+          const planQ = data.plan.find((p) => p?.id === data.currentPlanId);
+          if (planQ) {
+            helper = (planQ.helper || '').toString().trim();
+            options = Array.isArray(planQ.options) ? planQ.options.filter(Boolean).map(String).slice(0, 6) : [];
+          }
+        }
+        setMessages((m) => [...m, mkMsg('assistant', data?.question || 'Got it — anything else to add?', { helper, options, n, total })]);
         setWorking(false);
       } else {
         const data = await sendChat(projectId, text);

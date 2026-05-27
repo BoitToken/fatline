@@ -3,23 +3,22 @@ import { listProjects, createProject, discoveryChat, buildInstant, uploadLogo, g
 import { Icon } from '../lib/icons.jsx';
 import brandMark from '../assets/produsa-mark.png';
 
-// "What kind of project?" pills — mirrors produsa.app/dashboard (all of them).
+// "What kind of project?" pills — mirrors produsa.app/dashboard.
+// `comingSoon` modules are visually greyed + disabled until the pipeline is ready.
+// CEO mandate 2026-05-28: Mobile, CRM, Agent, Personal stay disabled.
 const TYPES = [
   { value: 'website', emoji: '🌐', label: 'Website' },
   { value: 'webapp', emoji: '⚙️', label: 'Web App' },
   { value: 'shopify', emoji: '🛍️', label: 'Shopify Store' },
-  { value: 'mobile', emoji: '📱', label: 'Mobile App' },
-  { value: 'crm', emoji: '📊', label: 'CRM' },
-  { value: 'agent', emoji: '🤖', label: 'Agent' },
-  { value: 'personal', emoji: '👤', label: 'Personal App' },
+  { value: 'mobile', emoji: '📱', label: 'Mobile App', comingSoon: true },
+  { value: 'crm', emoji: '📊', label: 'CRM', comingSoon: true },
+  { value: 'agent', emoji: '🤖', label: 'Agent', comingSoon: true },
+  { value: 'personal', emoji: '👤', label: 'Personal App', comingSoon: true },
 ];
 
-const EXAMPLES = [
-  'A premium paan delivery store for celebrations in Bangalore',
-  'A CRM for freelance interior designers to track clients and invoices',
-  'A landing page for an AI legal contract review tool',
-  'A skincare D2C brand with a personalized routine quiz',
-];
+// CEO mandate 2026-05-28: "Paan in Bangalore" example chips removed —
+// they were a placeholder seed and felt unprofessional pre-launch.
+// Re-enable later via remote config when we have curated, on-brand prompts.
 
 function greeting() {
   const h = new Date().getHours();
@@ -149,7 +148,32 @@ export default function Dashboard({ onOpenStudio, onLogout }) {
   const applyDiscovery = (projectId, r) => {
     const q = r?.question || r?.message;
     if (r?.isComplete || !q) { finish(projectId); return; }
-    setChat((c) => ({ ...c, projectId, thinking: false, messages: [...c.messages, { role: 'assistant', text: q }] }));
+    // CEO mandate 2026-05-28 (Item 3): InstaScout returns a `plan` array with
+    // { id, question, helper, options } per question. When the current question
+    // has options, render them as multiple-choice chips above the answer input.
+    // The user can click a chip to autofill OR type their own answer.
+    let helper = ''
+    let options = []
+    if (Array.isArray(r?.plan) && r?.currentPlanId) {
+      const planQ = r.plan.find((p) => p?.id === r.currentPlanId)
+      if (planQ) {
+        helper = (planQ.helper || '').toString().trim()
+        options = Array.isArray(planQ.options)
+          ? planQ.options.filter(Boolean).map(String).slice(0, 6)
+          : []
+      }
+    }
+    const total = r?.totalEstimate || null
+    const n = r?.questionNumber || null
+    setChat((c) => ({
+      ...c,
+      projectId,
+      thinking: false,
+      messages: [
+        ...c.messages,
+        { role: 'assistant', text: q, helper, options, n, total },
+      ],
+    }));
   };
 
   // Discovery done (or skipped) → fire the instant build and open the studio.
@@ -250,9 +274,52 @@ export default function Dashboard({ onOpenStudio, onLogout }) {
           ) : (
             <div className="fl-chat-wrap">
               <div className="fl-chat" ref={chatRef}>
-                {chat.messages.map((m, i) => (
-                  <div key={i} className={`fl-bubble ${m.role}`}>{m.text}</div>
-                ))}
+                {chat.messages.map((m, i) => {
+                  if (m.role !== 'assistant') {
+                    return <div key={i} className={`fl-bubble ${m.role}`}>{m.text}</div>
+                  }
+                  const isLast = i === chat.messages.length - 1
+                  const showOptions = isLast && !chat.done && Array.isArray(m.options) && m.options.length > 0
+                  return (
+                    <div key={i} className="fl-question-card">
+                      {m.n && m.total ? (
+                        <div className="fl-question-meta">Question {m.n} of ~{m.total}</div>
+                      ) : null}
+                      <div className="fl-bubble assistant fl-question-text">{m.text}</div>
+                      {m.helper ? <div className="fl-question-helper">{m.helper}</div> : null}
+                      {showOptions && (
+                        <div className="fl-question-options">
+                          {m.options.map((opt, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              className="fl-option-card"
+                              disabled={chat.thinking}
+                              onClick={() => {
+                                if (chat.thinking) return
+                                setChat((c) => ({
+                                  ...c,
+                                  messages: [...c.messages, { role: 'user', text: opt }],
+                                  thinking: true,
+                                }))
+                                discoveryChat(chat.projectId, opt)
+                                  .then((r) => applyDiscovery(chat.projectId, r))
+                                  .catch((e) => {
+                                    setError(e.message || 'Discovery failed');
+                                    setChat((c) => ({ ...c, thinking: false }));
+                                  })
+                              }}
+                            >
+                              <span className="fl-option-num">{idx + 1}</span>
+                              <span className="fl-option-label">{opt}</span>
+                            </button>
+                          ))}
+                          <div className="fl-option-hint">Pick one, or type your own answer below</div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
                 {chat.thinking && <div className="fl-bubble assistant fl-typing"><span /><span /><span /></div>}
               </div>
               {!chat.done && (
@@ -286,16 +353,17 @@ export default function Dashboard({ onOpenStudio, onLogout }) {
               {TYPES.map((t) => (
                 <button
                   key={t.value}
-                  className={`fl-pill ${type === t.value ? 'on' : ''}`}
-                  onClick={() => setType(t.value)}
+                  className={`fl-pill ${type === t.value ? 'on' : ''} ${t.comingSoon ? 'soon' : ''}`}
+                  onClick={() => !t.comingSoon && setType(t.value)}
+                  disabled={t.comingSoon}
+                  title={t.comingSoon ? 'Coming soon' : ''}
+                  aria-disabled={t.comingSoon || undefined}
                 >
                   <span className="fl-emoji">{t.emoji}</span> {t.label}
-                  {type === t.value && <Icon name="check" size={13} />}
+                  {t.comingSoon && <span className="fl-soon-tag">soon</span>}
+                  {type === t.value && !t.comingSoon && <Icon name="check" size={13} />}
                 </button>
               ))}
-            </div>
-            <div className="fl-examples">
-              {EXAMPLES.map((ex) => <button key={ex} className="chip" onClick={() => setIdea(ex)}>{ex}</button>)}
             </div>
           </div>
         )}

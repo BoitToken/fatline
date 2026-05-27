@@ -38,12 +38,44 @@ export default function ChatPanel({ messages, sending, working, onSend, mode = '
             Tell the builder what to create or refine. It updates the live preview as it works.
           </div>
         )}
-        {messages.map((m) => (
-          <div key={m.id} className={`msg ${m.role}`}>
-            <div className="who">{m.role === 'user' ? 'You' : m.role === 'system' ? 'Build' : 'Produsa'}</div>
-            <div className="body">{m.content}</div>
-          </div>
-        ))}
+        {messages.map((m, idx) => {
+          const isLast = idx === messages.length - 1;
+          const isAsst = m.role === 'assistant';
+          // CEO mandate 2026-05-28 (Item 3 + 6): render assistant questions as
+          // rich multiple-choice cards when the backend returns options. Clicking
+          // a chip auto-sends that option as the answer.
+          const showOptions = isAsst && isLast && !sending && !working && mode === 'discovery'
+            && Array.isArray(m.options) && m.options.length > 0;
+          return (
+            <div key={m.id} className={`msg ${m.role}`}>
+              <div className="who">{m.role === 'user' ? 'You' : m.role === 'system' ? 'Build' : 'Produsa'}</div>
+              {isAsst && m.n && m.total ? (
+                <div className="q-meta muted" style={{ fontSize: 11, marginBottom: 4 }}>Question {m.n} of ~{m.total}</div>
+              ) : null}
+              <div className="body">{m.content}</div>
+              {isAsst && m.helper ? (
+                <div className="q-helper muted" style={{ fontSize: 12, marginTop: 6, fontStyle: 'italic' }}>{m.helper}</div>
+              ) : null}
+              {showOptions && (
+                <div className="q-options">
+                  {m.options.map((opt, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className="q-option-card"
+                      disabled={sending}
+                      onClick={() => { if (!sending) onSend(opt); }}
+                    >
+                      <span className="q-option-num">{i + 1}</span>
+                      <span className="q-option-label">{opt}</span>
+                    </button>
+                  ))}
+                  <div className="q-option-hint muted" style={{ fontSize: 11, marginTop: 4 }}>Pick one, or type your own answer below</div>
+                </div>
+              )}
+            </div>
+          );
+        })}
         {working && (
           <div className="msg assistant">
             <div className="who">Produsa</div>
