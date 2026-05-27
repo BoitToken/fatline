@@ -149,6 +149,10 @@ export async function createProject({ name, description, type = 'webapp', brandU
       // V2's create validator only accepts research|viability|design|development|golive|marketing|live.
       // The instant/discovery flow is driven by metadata + the chat/build endpoints, not this stage.
       name,
+      // The deployed V2 API only accepts stage:'research' at create (verified
+      // 2026-05-23 against api.produsa.app; other values 400). Prototype-first
+      // (#73) comes from calling build/instant right after discovery, not the
+      // create stage — so we create at 'research' and trigger the instant build.
       stage: 'research',
       description,
       type,

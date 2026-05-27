@@ -1,6 +1,8 @@
 # Fatline FatPipeline v2 — Fatter Agents, Validation Every Stage
 
-**Status:** Active mandate  
+> ⚠️ **SUPERSEDED (v2, historical).** The canonical spec is [FATPIPELINE-v3.md](./FATPIPELINE-v3.md). Rules are canonical in [FATBOT-RULES.md](./FATBOT-RULES.md). Kept for history.
+
+**Status:** Superseded by v3  
 **Author:** ProdusaClaw  
 **Date:** 2026-05-20  
 

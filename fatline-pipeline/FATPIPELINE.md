@@ -1,6 +1,8 @@
 # Produsa FatPipeline — Verification-First Pipeline
 
-**Status:** Draft for testing  
+> ⚠️ **SUPERSEDED (v1, historical).** The canonical spec is [FATPIPELINE-v3.md](./FATPIPELINE-v3.md). Rules are canonical in [FATBOT-RULES.md](./FATBOT-RULES.md); the runnable pipeline lives in [runtime/](./runtime/). Kept for history.
+
+**Status:** Draft for testing (historical)  
 **Author:** ProdusaClaw  
 **Name:** FatPipeline  
 **Intent:** Replace the current handoff-heavy generation chain with a smaller, tighter system that turns a one-line idea into a functional prototype, then turns approved prototypes into deployable products.
@@ -72,7 +74,7 @@ Own the first interaction after a one-line idea.
 
 **Output:** Discovery answers + product classification + risk flags.
 
-### 2. FatScout
+### 2. FatArchitect (Concept Architect)
 Turn discovery into the build plan.
 
 **Job:** Write the concept packet, information architecture, page map, feature priority, mock-data plan, style tokens, and anti-pattern fence.
@@ -100,8 +102,8 @@ After prototype approval, deepen the system into a deployable product.
 
 **Output:** Deployable app/website + production verification packet.
 
-### 6. FatDeploy *(conditional)*
-Apply bounded, surgical fixes only when verification fails.
+### 6. FatMender *(conditional — Repair Engineer)*
+Apply bounded, surgical fixes only when verification fails. (Deploy itself is folded into FatForge.)
 
 **Job:** Patch exactly what the verifier localized. Do not redesign blindly. Do not widen scope.
 

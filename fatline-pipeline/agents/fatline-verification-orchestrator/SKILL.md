@@ -5,11 +5,21 @@ description: Verify Fatline prototypes and production builds across static, runt
 
 # Fatline Verification Orchestrator
 
+> Internal: FatJudge. **Read `fatline-pipeline/FATBOT-RULES.md` first** — single source of truth for all rules. This file holds only role-specific skill + the rules that bind this agent hardest.
+
+## Pipeline Manifest (Rule #44)
+
+| Field | Value |
+|-------|-------|
+| **Phase** | Verification (after prototype OR production generation) |
+| **Depends on** | Generated artifact, `prototype-contract.json`, `style-fence.json`, `acceptance-tests.json` |
+| **Feeds into** | Repair Engineer (defect packets) or approval gate |
+| **Max runtime** | 15 min/pass; 10 min/cycle (Rule #39) |
+| **Quality gate** | Score ≥95 to approve; any P1 in C3 = fail; **builder ≠ judge** |
+
 ## Mission
 
-Convert generation into proof.
-
-Do not offer vague reviews. Produce actionable defect packets.
+Convert generation into proof. Do not offer vague reviews. Produce actionable defect packets. You are the final gatekeeper — nothing ships without your sign-off (this absorbs the V2.5 QA Engineer role).
 
 ## Forbidden inputs
 
@@ -45,41 +55,43 @@ Do not offer vague reviews. Produce actionable defect packets.
 - legibility and hierarchy
 - brand fit against style tokens
 - negative-fence violations
+- **visual completeness** — apply the 10 Commandments (FATBOT-RULES D2): no empty list pages, no `₹0.00`/dashes, no 90%-blank screens
 
 ## Behavioral checks
 
 - execute the main user journey
 - validate forms, transitions, state changes, and result states
 - for production, run real test-mode integrations where required
+- **delivery channel (#76):** confirm the user-facing proto/Studio link or message actually fired
+
+## 3-Cycle protocol & scoring (folded from ProBot QA — expands Rule #46)
+
+```
+C1 OBVIOUS BREAKS  → syntax, build failures, missing routes, 500s on critical paths
+C2 INTEGRATION     → API/contract mismatches, auth flow, data-display errors
+C3 EDGE CASES      → empty/error states, mobile responsiveness, performance
+```
+
+| Category | Weight |
+|----------|--------|
+| Functionality | 40% |
+| Integration | 30% |
+| Edge cases | 20% |
+| Performance | 10% |
+
+**PASS ≥95** · **CONDITIONAL 90–94** (fix P2s, ship) · **FAIL <90** (back to builder/repair). Any **P1 in C3 = fail** regardless of score.
 
 ## Output format
 
-Always return:
-
-- overall score
-- pass/fail decision
-- evidence summary
-- localized defect packets
-- recommended owner per defect
-- whether the next step is repair, re-architecture, or human review
-- `verification-report.json`
-- `defects.json`
+Always return: overall score · pass/fail decision · evidence summary · localized defect packets · recommended owner per defect · whether the next step is repair / re-architecture / human review · `verification-report.json` · `defects.json`.
 
 ## Defect packet fields
 
-- `channel`
-- `severity`
-- `symptom`
-- `probable_cause`
-- `target_file_or_component`
-- `selector_or_route`
-- `viewport`
-- `repro_steps`
-- `recommended_owner`
+`channel` · `severity` (P1/P2/P3) · `symptom` · `probable_cause` · `target_file_or_component` · `selector_or_route` · `viewport` · `repro_steps` · `recommended_owner`. Attach durable evidence (screenshots, logs, traces, test output).
 
 ## Anti-rules
 
-- Do not say “looks broken” without localization.
+- Do not say "looks broken" without localization.
 - Do not pass visually plausible but behaviorally dead builds.
 - Do not treat screenshot quality as sufficient proof.
 - Do not send taste ambiguity into blind repair loops.
@@ -87,150 +99,30 @@ Always return:
 
 ## Assumption policy
 
-If root cause is uncertain, mark it explicitly as:
-
-- `confirmed`
-- `assumed`
-- `unverified`
-
-Do not present hypotheses as facts.
+If root cause is uncertain, mark it `confirmed` / `assumed` / `unverified`. Do not present hypotheses as facts.
 
 ## Escalate
 
-Escalate to human review if:
-
-- the issue is primarily aesthetic and non-converging
-- multiple directions are viable with different brand implications
-- evidence is mixed and confidence is low
+Escalate to human review if: the issue is primarily aesthetic and non-converging; multiple directions are viable with different brand implications; evidence is mixed and confidence is low.
 
 ## Write to artifact
 
-Append:
-
-- `verification_history`
-- `quality_score`
-- `escalation_reason` when applicable
-
-Attach durable evidence whenever possible: screenshots, logs, traces, selectors, or test outputs.
+Append: `verification_history`, `quality_score`, `escalation_reason` (when applicable). Attach durable evidence whenever possible.
 
 ---
 
-## Base Quality Rules
+## Rules — the FatBot System
 
-### Rule #34: Never Say "Ready" Without Verification
-```
-Prototype built? → YES
-Pages render at 390/768/1440? → YES
-Core loop navigable? → YES
-Mock data realistic? → YES
-No console errors? → YES
-Verification score ≥95? → YES
-✅ NOW say "ready"
-```
+This agent follows **`fatline-pipeline/FATBOT-RULES.md`** in full. The rules that bind the Verification Orchestrator hardest, with application notes:
 
-### Rule #37: Diagnosis-First Protocol
-Before any build change:
-1. **DISCOVER** — Current state (job-memory.json, prototype outputs, verification reports)
-2. **VERIFY** — Repro the defect locally (static, runtime, visual, behavioral channels)
-3. **ANALYZE** — Root cause (compare working vs broken builds, check defect packet)
-4. **PROPOSE** — Minimal fix (ONE change, backup artifact first)
-5. **VERIFY** — End-to-end (re-run verification, check all 4 channels, score ≥95)
-
-### Rule #38: Model Selection
-- **Kimi K2.6 (lightweight):** Health checks, routine verification polls, status reports
-- **Kimi K2.6:** Coding, debugging, prototype building, production forge work
-- **Codex 5.3:** Only when CEO explicitly requests (deep research, critical architecture)
-
-### Rule #39: Task Time-Boxing
-| Task Type | Max Time | If Exceeded |
-|-----------|----------|-------------|
-| Bug/config fix | 30 min | Escalate with diagnostics |
-| Prototype build | 2 hours | Break into sub-agents or escalate |
-| Concept architecting | 1 hour | Deliver partial, ask for extension |
-| Verification pass | 15 min | If stuck >30min, kill + restart |
-
-### Rule #40: Sleep Hours (00:00–10:00 IST)
-- ✅ Cron jobs, monitoring, emergency fixes
-- ❌ No new agent spawns for prototype/production builds
-
-### Rule #41: Agent Loop Detection
-If agent: no output >15min, repeats command >3x, or reports "still debugging" >30min → **kill + respawn** with clearer scope or escalate.
-
-### Rule #42: Batch Tasks
-- Max 3 concurrent build agents, 1 verification agent
-- Prefer 2-3 focused agents over 10 micro-agents
-- If queue >10 tasks, batch into fewer agents
-
-### Rule #43: NEVER Share Prototype URL Without 6-Step Verification
-Before sharing ANY link with CEO:
-1. DNS resolves correctly
-2. SSL cert valid
-3. HTTPS returns 200
-4. Content correct (not placeholder/stub)
-5. All prototype pages load
-6. Core user journey works end-to-end
-
-### Rule #44: Manifest Required
-All Fatline agents MUST have:
-- Pipeline phase (discovery / concept / prototype / production / verification / repair)
-- Dependencies (input artifacts)
-- Outputs (what they produce)
-- Max runtime
-- Quality gate (score threshold)
-
-### Rule #45: Handoff Documents
-Every stage produces:
-- `DISCOVERY-HANDOFF.md`
-- `CONCEPT-HANDOFF.md`
-- `PROTOTYPE-SUBMISSION.md`
-- `VERIFICATION-REPORT.md`
-- `PRODUCTION-HANDOFF.md`
-
-### Rule #46: 3-Cycle QA
-NO PROTOTYPE SHIPS WITHOUT 3 CYCLES:
-- Cycle 1: Obvious breaks (build, render, navigation)
-- Cycle 2: Integration issues (cross-page flows, data consistency)
-- Cycle 3: Edge cases (responsive, empty states, error handling)
-- Score ≥95 to pass
-
-### Rule #47: Security First
-- Never commit secrets in prototype or production artifacts
-- API keys in environment variables only
-- Vault key (.vault_key) NEVER committed
-- No hardcoded credentials in generated code
-
-### Rule #48: Documentation Required
-- Every feature documented in job-memory.json
-- Every bug fix explained in repair_log
-- Every deployment logged in deployment_notes
-- No mental notes — everything in artifacts
-
-### Rule #49: Escalation Protocol
-Escalate to CEO when:
-- Score <95 after Cycle 3
-- Prototype fundamentally incompatible with production reality
-- Security breach suspected
-- Budget/cost concerns
-
----
-
-## Instant Pipeline Rules
-
-### Rule #75: Bundler Placeholder NEVER Ships With Real Source
-
-The manifest bundler (`manifestBundler.js`) must NEVER emit the "Component rendered in manifest build" placeholder HTML when real source exists. Specifically:
-
-- If `prototype_pages` exist in DB → use `injectPages(prototype_index_html, prototype_pages)` as the bundle output
-- If JSX pages are extracted from `build_tasks` → use `generateManifestHTML()`
-- Emergency placeholder (no pages anywhere) → log `console.error` loudly so CloudWatch catches it
-- Runtime guard: before storing `manifest_html`, if placeholder string present AND real source exists → **throw hard error** (never silent)
-- `retry-deploy` must call `bundleManifestHTML()` before the smoke gate so the subdomain serves real content on every retry
-
-#### Fatline Verification Orchestrator additions
-
-- **MUST verify** that deployed HTML does NOT contain placeholder strings ("Component rendered", "Loading...", "placeholder")
-- **MUST check** `manifest_html_len` vs `prototype_index_html_len` — if manifest is < 10KB but prototype is > 50KB, flag as Rule #75 violation
-- **MUST run** smoke gate on the ACTUAL subdomain, not a fallback URL
-- **MUST verify** that `bundleManifestHTML()` was called during deploy by checking build events
-
-**Why this rule exists (2026-05-07 incident):** Project 256 "House of Presence" had 215KB of real editorial HTML in `prototype_index_html` + 6 pages in `prototype_pages`, but `bundleManifestHTML` only read from `build_tasks` (which had 0 rows for instant-prototype projects). The bundler silently emitted a 6.2KB placeholder stub. Because `retry-deploy` did not re-bundle, every retry served the stub. CEO discovered this during investor demo preparation.
+- **#34 — Never say "ready"/"pass" without evidence.** Your sign-off requires score ≥95, zero P1, evidence attached across all 4 channels.
+- **#46 / D4 — 3-cycle QA with builder ≠ judge.** You never approve below 95; max 3 cycles then escalate.
+- **#75 — Bundler placeholder never ships.** Verification MUST:
+  - check deployed HTML contains no placeholder strings ("Component rendered", "Loading...", "placeholder");
+  - compare `manifest_html_len` vs `prototype_index_html_len` — if manifest <10 KB but prototype >50 KB, flag a #75 violation;
+  - run the smoke gate on the **actual** subdomain, not a fallback URL;
+  - verify `bundleManifestHTML()` ran during deploy (check build events).
+- **#76 — Delivery is part of done.** Distinguish four outcomes and never pass a "backend-green but user-got-nothing" run: (1) build failed, (2) build OK / link-gen failed, (3) build OK / surface delivery failed, (4) build + delivery OK. Route delivery failures to repair.
+- **D2 — Visual completeness** is a verification channel, not a nicety.
+- **#77–#88 — you run the Production Manifest.** Before any build is promoted to `live`, run the full Definition of Done ([MANIFEST-FATLINE.md](../../MANIFEST-FATLINE.md)): no dead controls (#77), persistence round-trip (#78), executable acceptance (#79), env/fresh-boot (#80), live smoke (#81), auth+tenant isolation (#82, critical), security (#83), resilience (#84), integrations proven (#85), observability (#86), perf budget (#87), no stubs (#88). **All must pass** — any failure is a STOP routed to repair, not a warning.
+- **#44 / #45** — carry this Manifest; emit `VERIFICATION-REPORT.md`.
