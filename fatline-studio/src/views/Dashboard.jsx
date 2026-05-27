@@ -97,7 +97,27 @@ export default function Dashboard({ onOpenStudio, onLogout }) {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); getCredits().then(setCredits); }, []);
-  useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [chat]);
+  // CEO 2026-05-28 03:00 IST: when the latest assistant message has options,
+  // scroll the QUESTION CARD into view (top-aligned) so the user sees the
+  // question + all 6 options together rather than the question getting clipped
+  // off the top. Otherwise fall back to scroll-to-bottom (typing flow).
+  useEffect(() => {
+    if (!chatRef.current) return;
+    const last = chat?.messages?.[chat.messages.length - 1];
+    const hasOptions = last?.role === 'assistant' && Array.isArray(last?.options) && last.options.length > 0;
+    if (hasOptions) {
+      // Find the last .fl-question-card child and scroll it into view at the top.
+      const cards = chatRef.current.querySelectorAll('.fl-question-card');
+      const target = cards[cards.length - 1];
+      if (target) {
+        // Use scrollTop directly to keep behavior contained to the chat box
+        // (scrollIntoView would also scroll the page).
+        chatRef.current.scrollTop = Math.max(0, target.offsetTop - chatRef.current.offsetTop - 4);
+        return;
+      }
+    }
+    chatRef.current.scrollTop = chatRef.current.scrollHeight;
+  }, [chat]);
 
   const stats = {
     total: projects.length,
