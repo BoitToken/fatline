@@ -1,6 +1,6 @@
 // Fatline prototype generator — orchestrates brief → pages → deterministic shell.
 import { chat, extractJson, sanitizeHtml, MODELS } from './llm.mjs';
-import { detectIndustry, getPalette, getFontPair, defaultFontKey } from './palette.mjs';
+import { detectIndustry, getPalette, getFontPair, defaultFontKey, hexToRgb, HERO_ARCHETYPES } from './palette.mjs';
 import { getPages, resolveType } from './pages.mjs';
 import { buildImageKit } from './images.mjs';
 import { briefSystem, briefUser, pageSystem, pageUser } from './prompts.mjs';
@@ -16,6 +16,69 @@ function validPalette(p) {
     out[k] = p[k];
   }
   return out;
+}
+
+const toHex = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+function mixHex(a, b, t) {
+  const [r1, g1, b1] = hexToRgb(a), [r2, g2, b2] = hexToRgb(b);
+  return `#${toHex(r1 + (r2 - r1) * t)}${toHex(g1 + (g2 - g1) * t)}${toHex(b1 + (b2 - b1) * t)}`;
+}
+const pick = (v, allow, def) => (typeof v === 'string' && allow.includes(v) ? v : def);
+const str = (v, def) => (typeof v === 'string' && v.trim() ? v.trim() : def);
+const weights = (v, def) => (/^\d{3}(;\d{3})*$/.test(String(v || '')) ? v : def);
+
+// Normalise the brief's artDirection into a complete, render-safe design system.
+// Every field has a fallback (derived from the industry palette / font pair) so a
+// partial or missing artDirection never breaks the deterministic shell.
+function buildArt(raw, industry) {
+  const ad = raw.artDirection || {};
+  const base = getPalette(industry);
+  const legacyPal = validPalette(raw.paletteOverride);
+  const legacyFonts = getFontPair(raw.fontKey || defaultFontKey(industry));
+  const t = ad.tokens || {};
+  const h = (v, fb) => (HEX.test(v || '') ? v : fb);
+
+  const primary = h(t.primary, legacyPal?.primary || base.primary);
+  const accent = h(t.accent, legacyPal?.accent || base.accent);
+  const bg = h(t.bg, legacyPal?.bg || base.bg);
+  const card = h(t.card, legacyPal?.card || base.card);
+  const text = h(t.text, legacyPal?.text || base.text);
+  const inkMuted = h(t.inkMuted, legacyPal?.muted || base.muted);
+
+  const tokens = {
+    primary, accent, bg, card, text, inkMuted,
+    bgElev: h(t.bgElev, mixHex(bg, card, 0.5)),
+    line: h(t.line, mixHex(bg, text, 0.12)),
+    inkDim: h(t.inkDim, mixHex(inkMuted, bg, 0.45)),
+    ok: h(t.ok, '#4ade80'),
+    warn: h(t.warn, '#fbbf24'),
+    risk: h(t.risk, '#f87171'),
+    contrast: h(t.contrast, text),
+  };
+
+  const adt = ad.type || {};
+  const type = {
+    display: str(adt.display, legacyFonts.display),
+    body: str(adt.body, legacyFonts.body),
+    mono: str(adt.mono, 'JetBrains Mono'),
+    displayWeights: weights(adt.displayWeights, legacyFonts.displayWeights),
+    bodyWeights: weights(adt.bodyWeights, legacyFonts.bodyWeights),
+    headingStyle: pick(adt.headingStyle, ['normal', 'italic-accent'], 'normal'),
+    scale: pick(adt.scale, ['compact', 'balanced', 'editorial-xl'], 'balanced'),
+    letterSpacing: pick(adt.letterSpacing, ['tight', 'normal'], 'tight'),
+  };
+
+  return {
+    concept: str(ad.concept, ''),
+    rationale: str(ad.rationale, ''),
+    mood: str(ad.mood, raw.voice || ''),
+    tokens,
+    type,
+    motion: pick(ad.motion, ['subtle', 'lively', 'cinematic'], 'subtle'),
+    texture: pick(ad.texture, ['none', 'grain', 'glow'], 'none'),
+    layoutArchetype: pick(ad.layoutArchetype, HERO_ARCHETYPES, 'split-right'),
+    signature: str(ad.signature, ''),
+  };
 }
 
 function countImages(html) {
@@ -46,7 +109,7 @@ export async function generatePrototype({
   appType = 'webapp',
   currency = '₹ (INR)',
   model = MODELS.sonnet,
-  briefModel = MODELS.sonnet,
+  briefModel = MODELS.opus, // art direction is the high-leverage creative call → Opus 4.6
   onEvent = () => {},
 } = {}) {
   const t0 = Date.now();
@@ -71,22 +134,26 @@ export async function generatePrototype({
     throw new Error(`brief parse failed: ${e.message}`);
   }
 
-  const palette = validPalette(raw.paletteOverride) || getPalette(industry);
-  const fonts = getFontPair(raw.fontKey || defaultFontKey(industry));
+  // Art direction (decided by the same agent as the research) → a complete design system.
+  const art = buildArt(raw, industry);
+  const palette = { primary: art.tokens.primary, accent: art.tokens.accent, bg: art.tokens.bg, card: art.tokens.card, text: art.tokens.text, muted: art.tokens.inkMuted };
+  const fonts = { display: art.type.display, body: art.type.body, displayWeights: art.type.displayWeights, bodyWeights: art.type.bodyWeights };
   const shellBrief = {
     name: raw.name || idea.slice(0, 24),
     tagline: raw.tagline || '',
     navTag: raw.navTag || '',
     palette,
     fonts,
+    art,
     hero: raw.hero || {},
     ctaPrimary: raw.hero?.ctaPrimary || 'Get Started',
     pages: raw.pages || {},
   };
   const kit = buildImageKit({ category: industry, keyword: raw.imageKeyword, primaryHex: palette.primary });
+  onEvent({ type: 'stage', stage: 'art', concept: art.concept, archetype: art.layoutArchetype, type: `${art.type.display}/${art.type.body}/${art.type.mono}`, texture: art.texture });
   onEvent({ type: 'stage', stage: 'pages', count: pages.length, brand: shellBrief.name });
 
-  // --- Stage 2: pages (parallel) ---
+  // --- Stage 2: pages (parallel) — every page render receives the art direction via fullBrief.art ---
   const fullBrief = { ...shellBrief, voice: raw.voice, audience: raw.audience, stats: raw.stats, catalog: raw.catalog, testimonials: raw.testimonials };
   const results = await Promise.allSettled(
     pages.map(async (p) => {

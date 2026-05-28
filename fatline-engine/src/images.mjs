@@ -55,19 +55,49 @@ export function avatar(name = 'User', hex = '6d5efc') {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=fff&size=80&bold=true&format=png`;
 }
 
+const AV = ['Aarav Mehta', 'Diya Sharma', 'Kabir Rao', 'Anika Iyer', 'Rohan Nair'];
+
+// Turn the brief's concrete imageKeyword into LoremFlickr tags.
+// "artisan coffee roastery" -> "artisan,coffee,roastery"
+const STOP = new Set(['the', 'and', 'for', 'with', 'app', 'site', 'web', 'page']);
+function keywordTags(keyword, category) {
+  const toks = String(keyword || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9 ,]/g, ' ')
+    .split(/[\s,]+/)
+    .filter((w) => w.length > 2 && !STOP.has(w));
+  return (toks.length ? toks : [category || 'business']).slice(0, 3).join(',');
+}
+// LoremFlickr: real keyword-matched photos, stable per `lock` seed, fast CDN.
+const flickr = (tags, w, h, lock) => `https://loremflickr.com/${w}/${h}/${encodeURIComponent(tags)}?lock=${lock}`;
+
 // Image kit referenced by the page prompts + the deterministic image-floor injector.
-// 8 cards: topical Unsplash first, then Picsum fills — all real and fast-loading.
+// Driven by the brief's imageKeyword so imagery matches the actual brand (coffee,
+// not a generic cafe) — previously this used only the broad industry category, so
+// every "food" build shared the same four photos. Falls back to the curated
+// Unsplash pool when the brief produced no usable keyword. A global onerror handler
+// in the shell swaps any image that fails to load for a Picsum photo, so the
+// engine's "no broken images" guarantee holds regardless of source.
 export function buildImageKit({ category, keyword, primaryHex }) {
   const hex = (primaryHex || '#6d5efc').replace('#', '');
-  const p = poolFor(category);
-  const cards = Array.from({ length: 8 }, (_, i) =>
-    i < p.length ? U(p[i], 640, 480) : picsum(`${category}-c${i}`, 640, 480)
-  );
+  if (!String(keyword || '').trim()) {
+    const p = poolFor(category);
+    const cards = Array.from({ length: 8 }, (_, i) =>
+      i < p.length ? U(p[i], 640, 480) : picsum(`${category}-c${i}`, 640, 480)
+    );
+    return {
+      hero: U(p[0], 1400, 900), heroWide: U(p[1 % p.length], 1600, 700), feature: U(p[2 % p.length], 900, 700),
+      cards, avatars: AV.map((n) => avatar(n, hex)), keyword: category,
+    };
+  }
+  const tags = keywordTags(keyword, category);
+  const cards = Array.from({ length: 8 }, (_, i) => flickr(tags, 640, 480, 20 + i));
   return {
-    hero: U(p[0], 1400, 900),
-    heroWide: U(p[1 % p.length], 1600, 700),
-    feature: U(p[2 % p.length], 900, 700),
+    hero: flickr(tags, 1400, 900, 1),
+    heroWide: flickr(tags, 1600, 700, 2),
+    feature: flickr(tags, 900, 700, 3),
     cards,
-    avatars: ['Aarav Mehta', 'Diya Sharma', 'Kabir Rao', 'Anika Iyer', 'Rohan Nair'].map((n) => avatar(n, hex)),
+    avatars: AV.map((n) => avatar(n, hex)),
+    keyword: tags,
   };
 }
