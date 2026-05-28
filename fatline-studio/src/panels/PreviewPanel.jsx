@@ -7,9 +7,25 @@ const DEVICES = [
   ['mobile', 'smartphone'],
 ];
 
+// Heartbeat stage → human label/emoji for the live "building" overlay. Keys match
+// the canonical instant-build stages emitted by the heartbeat hook (A1 contract).
+const STAGE_EMOJI = {
+  research: '🔍', features: '✨', architecture: '🏗',
+  ux: '🎨', building: '🧱', audit: '✅', saving: '🚀',
+};
+const STAGE_LABEL = {
+  research: 'Researching brand + category…',
+  features: 'Drafting features + copy…',
+  architecture: 'Wiring the architecture…',
+  ux: 'Picking palette + type scale…',
+  building: 'Building the pages…',
+  audit: 'Running quality audit…',
+  saving: 'Finalizing prototype…',
+};
+
 export default function PreviewPanel({
   url, building, ready, device, setDevice, onReload,
-  pages, currentPage, onSelectPage, displayUrl,
+  pages, currentPage, onSelectPage, displayUrl, heartbeat,
 }) {
   const iframeRef = useRef(null);
 
@@ -54,8 +70,15 @@ export default function PreviewPanel({
             {building ? (
               <>
                 <div className="spinner" style={{ margin: '0 auto 14px' }} />
-                <div className="empty-title">Building your prototype…</div>
-                <p className="muted">The probots are generating your pages. This usually takes under a minute.</p>
+                <div className="empty-title">
+                  {heartbeat?.stageIndex >= 0
+                    ? `${STAGE_EMOJI[heartbeat.stageKey] || '🛠'} ${STAGE_LABEL[heartbeat.stageKey] || 'Building…'}`
+                    : 'Building your prototype…'}
+                </div>
+                <p className="muted">
+                  {heartbeat?.elapsedLabel ? `${heartbeat.elapsedLabel} elapsed` : 'The probots are generating your pages.'}
+                  {heartbeat?.etaLabel ? ` · ${heartbeat.etaLabel}` : ''}
+                </p>
               </>
             ) : (
               <>

@@ -9,6 +9,7 @@ import { Icon } from '../lib/icons.jsx';
 import ChatPanel from '../panels/ChatPanel.jsx';
 import PreviewPanel from '../panels/PreviewPanel.jsx';
 import BuildPanel, { stageKeyForStep } from '../panels/BuildPanel.jsx';
+import { useBuildHeartbeat } from '../lib/useBuildHeartbeat.js';
 
 const PHASES = ['Briefing', 'Prototype', 'Refine', 'Production', 'Live'];
 
@@ -66,6 +67,8 @@ export default function StudioShell({ projectId, onBack }) {
   const [stageKey, setStageKey] = useState(null); // current canonical instant stage
   const [mode, setMode] = useState('review'); // 'discovery' = onboarding Q&A, 'review' = build/refine
   const [disco, setDisco] = useState(null); // { n, total }
+  const [lastEventTs, setLastEventTs] = useState(null); // ms of last real socket event (drives connection pill)
+  const [startTs, setStartTs] = useState(null);         // ms the current build began (drives elapsed/ETA)
   const kicked = useRef(false);
 
   const url = useMemo(() => (previewReady ? previewUrl(projectId, version) : ''), [projectId, version, previewReady]);
@@ -110,6 +113,13 @@ export default function StudioShell({ projectId, onBack }) {
         if (!alive) return;
         setProject(p);
         if (p?.metadata?.deployed_url || p?.deployed_url) setDeployUrl(p.metadata?.deployed_url || p.deployed_url);
+        // If a build is already in flight when we mount (studio reopened mid-build),
+        // anchor the heartbeat clock so elapsed/ETA don't reset to 0. Prefer the
+        // backend's instant_started_at (ms) if present; else best-effort from now.
+        if (/build|research|design|develop|instant/.test(p?.stage || '')) {
+          const startedAt = Number(p?.metadata?.instant_started_at);
+          setStartTs((s) => s || (Number.isFinite(startedAt) && startedAt > 0 ? startedAt : Date.now()));
+        }
       } catch {}
       const hist = await chatHistory(projectId);
       if (alive && hist.length) {
@@ -131,27 +141,31 @@ export default function StudioShell({ projectId, onBack }) {
   // socket events
   useEffect(() => {
     joinProject(projectId);
+    // Stamp lastEventTs on EVERY real socket event so the heartbeat's connection
+    // state + "stuck" detection see genuine liveness. Wrap, don't replace, the
+    // original handler — real events must still flow through unchanged.
+    const withEventTs = (fn) => (e) => { setLastEventTs(Date.now()); return fn(e); };
     const off = onEvents({
-      'build:instant_started': () => { setBuilding(true); setWorking('Generating your prototype…'); setPct(0); setStageKey(null); pushEvent('Build started'); },
-      'build:instant_step': (e) => {
+      'build:instant_started': withEventTs(() => { setBuilding(true); setStartTs(Date.now()); setWorking('Generating your prototype…'); setPct(0); setStageKey(null); pushEvent('Build started'); }),
+      'build:instant_step': withEventTs((e) => {
         pushEvent(e?.label || 'Step', undefined);
         if (typeof e?.pct === 'number') setPct(e.pct);
         const sk = stageKeyForStep(e?.step);
         if (sk) setStageKey(sk);
-      },
-      'build:instant_ready': () => { pushEvent('Prototype ready'); markReady(); },
-      'build:instant_failed': (e) => { setBuilding(false); setWorking(false); pushEvent('Build failed', e?.message); },
-      'project:prototype_ready': () => { pushEvent('Prototype ready'); markReady(); },
-      'project:prototype_updated': () => { pushEvent('Prototype updated'); setWorking(false); setPreviewReady(true); setVersion(Date.now()); },
-      'project:chat_reply': (e) => { if (e?.reply) setMessages((m) => [...m, mkMsg('assistant', fixEstimate(e.reply))]); setWorking(false); },
-      'project:task_updated': (e) => { pushEvent(e?.agent || e?.name || 'Task', e?.status); setStatus((s) => s); refreshStatus(); },
-      'project:build_log': (e) => { if (e?.type !== 'stream' && e?.text) pushEvent(e?.agentName || 'Build', e.text); },
-      'project:phase_complete': (e) => pushEvent('Phase complete', e?.phase),
-      'project:build_complete': () => { pushEvent('Build complete'); refreshStatus(); reloadPreview(); },
-      'project:deployed': (e) => { setDeployUrl(e?.url || ''); pushEvent('Deployed', e?.url); },
-      'deploy:step': (e) => pushEvent('Deploy', e?.step),
-      'project:deploy_complete': (e) => { if (e?.deployedUrl) setDeployUrl(e.deployedUrl); pushEvent('Deploy complete'); },
-      'balance:recharge_required': () => { setMessages((m) => [...m, mkMsg('system', 'You are low on credits — top up to continue building.')]); },
+      }),
+      'build:instant_ready': withEventTs(() => { pushEvent('Prototype ready'); markReady(); }),
+      'build:instant_failed': withEventTs((e) => { setBuilding(false); setWorking(false); pushEvent('Build failed', e?.message); }),
+      'project:prototype_ready': withEventTs(() => { pushEvent('Prototype ready'); markReady(); }),
+      'project:prototype_updated': withEventTs(() => { pushEvent('Prototype updated'); setWorking(false); setPreviewReady(true); setVersion(Date.now()); }),
+      'project:chat_reply': withEventTs((e) => { if (e?.reply) setMessages((m) => [...m, mkMsg('assistant', fixEstimate(e.reply))]); setWorking(false); }),
+      'project:task_updated': withEventTs((e) => { pushEvent(e?.agent || e?.name || 'Task', e?.status); setStatus((s) => s); refreshStatus(); }),
+      'project:build_log': withEventTs((e) => { if (e?.type !== 'stream' && e?.text) pushEvent(e?.agentName || 'Build', e.text); }),
+      'project:phase_complete': withEventTs((e) => pushEvent('Phase complete', e?.phase)),
+      'project:build_complete': withEventTs(() => { pushEvent('Build complete'); refreshStatus(); reloadPreview(); }),
+      'project:deployed': withEventTs((e) => { setDeployUrl(e?.url || ''); pushEvent('Deployed', e?.url); }),
+      'deploy:step': withEventTs((e) => pushEvent('Deploy', e?.step)),
+      'project:deploy_complete': withEventTs((e) => { if (e?.deployedUrl) setDeployUrl(e.deployedUrl); pushEvent('Deploy complete'); }),
+      'balance:recharge_required': withEventTs(() => { setMessages((m) => [...m, mkMsg('system', 'You are low on credits — top up to continue building.')]); }),
     });
     return () => { off(); leaveProject(projectId); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -187,6 +201,7 @@ export default function StudioShell({ projectId, onBack }) {
     setMode('review');
     setDisco(null);
     setBuilding(true);
+    setStartTs((s) => s || Date.now()); // start the heartbeat clock immediately, before the first socket event
     setPct(0);
     setStageKey(null);
     setWorking('Building your prototype — this usually takes 1–2 minutes…');
@@ -207,6 +222,7 @@ export default function StudioShell({ projectId, onBack }) {
   const kickoff = useCallback(async () => {
     setMode('review');
     setBuilding(true);
+    setStartTs((s) => s || Date.now()); // start the heartbeat clock immediately, before the first socket event
     setPct(0);
     setStageKey(null);
     setWorking('Building your prototype — this usually takes 1–2 minutes…');
@@ -283,6 +299,18 @@ export default function StudioShell({ projectId, onBack }) {
     setFileBody((await readFile(projectId, f)) || '// (empty)');
   }, [projectId]);
 
+  // Synthetic build heartbeat: produces forward-only progress, ETA, elapsed clock
+  // and connection state so the UI never goes dead-silent. Real socket events
+  // (pct / stageKey / lastEventTs) stay authoritative — the simulation is the net.
+  const heartbeat = useBuildHeartbeat({
+    building,
+    previewReady,
+    realPct: pct,
+    realStageKey: stageKey,
+    lastEventTs,
+    startTs,
+  });
+
   const stage = project?.stage || '';
   let phaseIdx = 0;
   if (previewReady) phaseIdx = 2;
@@ -320,12 +348,14 @@ export default function StudioShell({ projectId, onBack }) {
           device={device} setDevice={setDevice} onReload={reloadPreview}
           pages={pages} currentPage={currentPage} onSelectPage={setCurrentPage}
           displayUrl={`${project?.subdomain || project?.metadata?.subdomain || toSubdomainLabel(project?.name)}.produsa.app`}
+          heartbeat={heartbeat}
         />
         <BuildPanel
           project={project} status={status} events={events} deployUrl={deployUrl} busy={busy} phase={stage}
           files={files} activeFile={activeFile} fileBody={fileBody} onSelectFile={onSelectFile}
           onBuildProduction={onBuildProduction} onDeploy={onDeploy} onReloadFiles={onReloadFiles}
           building={building} previewReady={previewReady} pct={pct} stageKey={stageKey}
+          heartbeat={heartbeat}
         />
       </div>
     </div>
