@@ -20,15 +20,48 @@ function bottomItem(p, active) {
 export function buildShell({ brief, pages, pagesData }) {
   const pal = brief.palette;
   const fonts = brief.fonts;
+  // Art direction (full design system). Falls back to the base palette/fonts when
+  // an older caller passes no `art`, so the deterministic render never breaks.
+  const art = brief.art || {};
+  const ty = art.type || {};
+  const tok = art.tokens || {};
+  const display = ty.display || fonts.display;
+  const body = ty.body || fonts.body;
+  const mono = ty.mono || 'JetBrains Mono';
+  const dWeights = ty.displayWeights || fonts.displayWeights || '500;600;700';
+  const bWeights = ty.bodyWeights || fonts.bodyWeights || '400;500;600';
+  const headingStyle = ty.headingStyle || 'normal';
+  const tracking = ty.letterSpacing === 'normal' ? '-0.005em' : '-0.022em';
+  const displaySize = ty.scale === 'editorial-xl' ? 'clamp(40px,8vw,92px)'
+    : ty.scale === 'compact' ? 'clamp(28px,4vw,44px)' : 'clamp(32px,5vw,60px)';
+  const texture = art.texture || 'none';
+  const T = {
+    bgElev: tok.bgElev || pal.card,
+    line: tok.line || pal.card,
+    inkMuted: tok.inkMuted || pal.muted,
+    inkDim: tok.inkDim || pal.muted,
+    ok: tok.ok || '#4ade80',
+    warn: tok.warn || '#fbbf24',
+    risk: tok.risk || '#f87171',
+    contrast: tok.contrast || pal.text,
+  };
   const primRgb = rgbStr(pal.primary);
   const accentRgb = rgbStr(pal.accent);
+
+  const grainCss = `body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.04;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");}`;
+  const glowCss = `.app{position:relative;z-index:1;}body::after{content:"";position:fixed;top:-15%;left:50%;transform:translateX(-50%);width:90vw;height:70vh;pointer-events:none;z-index:0;background:radial-gradient(ellipse at center,rgba(var(--primary-rgb),0.13),rgba(var(--accent-rgb),0.05) 35%,transparent 65%);}`;
+  const textureCss = texture === 'grain' ? grainCss : texture === 'glow' ? glowCss : '';
+  const accentHeadingCss = headingStyle === 'italic-accent'
+    ? `h1 em,h2 em,h3 em,.font-display em{font-style:italic;color:var(--accent);font-weight:inherit;}`
+    : '';
+
   const defaultPage = pages.find((p) => ['home', 'dashboard', 'landing'].includes(p.id))?.id || pages[0].id;
   const initials = (brief.name || 'Fatline').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 
+  const fam = (name, w) => `family=${encodeURIComponent(name)}:wght@${w}`;
   const fontLink =
     `https://fonts.googleapis.com/css2?` +
-    `family=${encodeURIComponent(fonts.display)}:wght@${fonts.displayWeights}` +
-    `&family=${encodeURIComponent(fonts.body)}:wght@${fonts.bodyWeights}&display=swap`;
+    `${fam(display, dWeights)}&${fam(body, bWeights)}&${fam(mono, '400;500')}&display=swap`;
 
   const pagesJson = JSON.stringify(pagesData).replace(/<\//g, '<\\/');
 
@@ -51,8 +84,10 @@ export function buildShell({ brief, pages, pagesData }) {
 <script>
 tailwind.config = {
   theme: { extend: {
-    colors: { brand: '${pal.primary}', accent: '${pal.accent}', ink: '${pal.bg}', card: '${pal.card}' },
-    fontFamily: { display: ['${fonts.display}','serif'], body: ['${fonts.body}','sans-serif'] }
+    colors: { brand: '${pal.primary}', accent: '${pal.accent}', ink: '${pal.bg}', card: '${pal.card}',
+      'bg-elev': '${T.bgElev}', line: '${T.line}', 'ink-muted': '${T.inkMuted}', 'ink-dim': '${T.inkDim}',
+      ok: '${T.ok}', warn: '${T.warn}', risk: '${T.risk}' },
+    fontFamily: { display: ['${display}','serif'], body: ['${body}','sans-serif'], mono: ['${mono}','monospace'] }
   } }
 };
 </script>
@@ -60,13 +95,21 @@ tailwind.config = {
   :root{
     --primary:${pal.primary}; --primary-rgb:${primRgb};
     --accent:${pal.accent}; --accent-rgb:${accentRgb};
-    --bg:${pal.bg}; --card:${pal.card}; --text:${pal.text}; --muted:${pal.muted};
-    --font-display:'${fonts.display}',serif; --font-body:'${fonts.body}',sans-serif;
+    --bg:${pal.bg}; --bg-elev:${T.bgElev}; --card:${pal.card}; --line:${T.line};
+    --text:${pal.text}; --contrast:${T.contrast};
+    --muted:${T.inkMuted}; --ink-muted:${T.inkMuted}; --ink-dim:${T.inkDim};
+    --ok:${T.ok}; --warn:${T.warn}; --risk:${T.risk};
+    --font-display:'${display}',serif; --font-body:'${body}',sans-serif; --font-mono:'${mono}',ui-monospace,monospace;
+    --display-size:${displaySize};
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;overflow-x:hidden;max-width:100%;}
   body{background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased;line-height:1.6;}
-  h1,h2,h3,h4,.font-display{font-family:var(--font-display);letter-spacing:-0.01em;line-height:1.1;}
+  ${textureCss}
+  h1,h2,h3,h4,.font-display{font-family:var(--font-display);letter-spacing:${tracking};line-height:1.06;}
+  ${accentHeadingCss}
+  .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);display:inline-flex;align-items:center;gap:10px;}
+  .eyebrow::before{content:"";width:22px;height:1px;background:currentColor;opacity:.7;}
   a{color:inherit;text-decoration:none;}
   ::selection{background:rgba(var(--primary-rgb),0.35);}
   img{display:block;max-width:100%;}
