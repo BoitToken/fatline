@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // CLI: generate one prototype to <out>/<label>/index.html
-//   node run.mjs --idea "..." --type ecommerce --label fl-1 --out ./out [--brief-opus]
+//   node run.mjs --idea "..." --type ecommerce --label fl-1 --out ./out [--brief-sonnet]
+//   (the brief/art-direction stage runs on Opus 4.6 by default; --brief-sonnet downgrades it)
 import { generatePrototype } from './src/generate.mjs';
 import { MODELS } from './src/llm.mjs';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -24,7 +25,7 @@ async function main() {
   console.log(`[gen] "${idea}" (${type}) -> ${label}`);
   const res = await generatePrototype({
     idea, appType: type, currency,
-    briefModel: flag('brief-opus') ? MODELS.opus : MODELS.sonnet,
+    briefModel: flag('brief-sonnet') ? MODELS.sonnet : MODELS.opus,
     model: flag('pages-opus') ? MODELS.opus : MODELS.sonnet,
     onEvent: (e) => console.log('   ·', JSON.stringify(e)),
   });
