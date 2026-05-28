@@ -32,7 +32,9 @@ async function main() {
   await writeFile(path.join(out, 'index.html'), res.html);
   await writeFile(path.join(out, 'pages.json'), JSON.stringify(res.pagesData, null, 2));
   await writeFile(path.join(out, 'brief.json'), JSON.stringify({ brief: res.brief, raw: res.raw, manifest: res.manifest }, null, 2));
-  console.log(`[gen] done in ${(res.meta.ms / 1000).toFixed(1)}s | ${res.meta.htmlLen} bytes | pages=${res.meta.pages} failures=${res.meta.failures.join(',') || 'none'} | ${out}/index.html`);
+  await writeFile(path.join(out, 'verification.json'), JSON.stringify(res.verification, null, 2));
+  const sr = res.meta.shipReady ? 'SHIP-READY ✅' : 'NOT ship-ready ⚠';
+  console.log(`[gen] done in ${(res.meta.ms / 1000).toFixed(1)}s | ${res.meta.htmlLen} bytes | pages=${res.meta.pages} failures=${res.meta.failures.join(',') || 'none'} | verdict=${sr} | ${out}/index.html`);
 }
 
 main().catch((e) => { console.error('[gen] FAILED:', e.message); process.exit(1); });
