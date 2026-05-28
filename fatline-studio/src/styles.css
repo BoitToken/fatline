@@ -321,3 +321,54 @@ label > span { display: block; font-size: 12px; color: var(--muted); margin-bott
 .fl-brand-logo { display: flex; align-items: center; gap: 12px; }
 .fl-brand-logo img { width: 44px; height: 44px; object-fit: contain; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--border); padding: 4px; }
 .fl-brand-logo-name { font-size: 12.5px; color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* === Sprint A: heartbeat UI === */
+/* Right-panel build header: stage chip + connection pill + elapsed/ETA + progress.
+   All new classes are sa- prefixed to avoid collision with existing studio classes. */
+.sa-build-header { display: flex; flex-direction: column; gap: 9px; padding: 14px; border-bottom: 1px solid var(--border); background: var(--bg-2); flex-shrink: 0; }
+.sa-build-header-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+.sa-stage-chip { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text); min-width: 0; }
+.sa-stage-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sa-stage-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
+.sa-stage-dot[data-state="active"] { background: var(--mint); box-shadow: 0 0 8px var(--mint); animation: sa-pulse 1.2s ease-in-out infinite; }
+
+/* Connection pill — live (mint), stale (amber), idle (neutral). */
+.sa-conn-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .02em; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.sa-conn-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
+.sa-conn-pill[data-state="live"] { border-color: rgba(52, 211, 153, 0.4); color: var(--mint); }
+.sa-conn-pill[data-state="live"] .sa-conn-dot { background: var(--mint); box-shadow: 0 0 8px var(--mint); animation: sa-pulse 1.2s ease-in-out infinite; }
+.sa-conn-pill[data-state="stale"] { border-color: rgba(251, 191, 36, 0.4); color: var(--amber); }
+.sa-conn-pill[data-state="stale"] .sa-conn-dot { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.sa-conn-pill[data-state="idle"] { border-color: var(--border); color: var(--muted); }
+
+.sa-build-header-meta { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sa-eta { color: var(--faint); }
+
+.sa-progress { height: 4px; width: 100%; background: var(--border); border-radius: 999px; overflow: hidden; }
+.sa-progress-fill { height: 100%; background: var(--brand-2); border-radius: 999px; transition: width 800ms ease-out; }
+
+/* Stuck banner — yellow tint, amber left border. No buttons (Sprint B owns retry/cancel). */
+.sa-stuck-banner { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; background: rgba(251, 191, 36, 0.10); border-left: 3px solid var(--amber); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.sa-stuck-icon { color: var(--amber); font-size: 15px; line-height: 1.4; flex-shrink: 0; }
+.sa-stuck-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.sa-stuck-sub { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
+
+/* Activity empty-state narration — scrolling stage lines while events are in flight. */
+.sa-narration { display: flex; flex-direction: column; gap: 9px; padding: 18px 4px; }
+.sa-narration-line { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--muted); opacity: .55; transition: opacity .3s ease, color .3s ease; }
+.sa-narration-line[data-current="true"] { color: var(--text); opacity: 1; font-weight: 600; }
+.sa-narration-emoji { flex-shrink: 0; }
+.sa-narration-text { flex: 1; min-width: 0; }
+.sa-narration-now { font-size: 11px; color: var(--brand-2); font-weight: 600; white-space: nowrap; }
+
+/* Active agent row — subtle highlight + pulsing icon. */
+.agent-row[data-active="true"] { background: rgba(var(--brand-rgb), 0.07); border-radius: 8px; }
+.agent-row[data-active="true"] svg { color: var(--brand-2); animation: sa-pulse 1.2s ease-in-out infinite; }
+
+/* Code-tab skeleton shimmer rows while building (no real files yet). */
+.sa-skeleton { display: flex; flex-direction: column; margin-top: 14px; }
+.sa-skeleton-row { height: 12px; border-radius: 4px; margin-bottom: 8px; background: linear-gradient(90deg, var(--bg-2) 0%, var(--elev) 50%, var(--bg-2) 100%); background-size: 200% 100%; animation: sa-shimmer 1.4s ease-in-out infinite; }
+
+@keyframes sa-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.85); } }
+@keyframes sa-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
